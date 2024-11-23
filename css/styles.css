@@ -11301,4 +11301,12 @@ a {
     padding: 15px !important;
     font-size: 14px !important;
   }
+
+  body {
+    padding-top: 45px; /* Adjust based on your navbar's height */
+  }
+
+  .modal-body h2 {
+    font-size: 1.5rem !important; /* Adjust to fit within the modal */
+  }
 }
