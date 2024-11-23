@@ -11302,11 +11302,20 @@ a {
     font-size: 14px !important;
   }
 
-  body {
-    padding-top: 45px; /* Adjust based on your navbar's height */
+  /* body {
+    padding-top: 45px;
   }
 
   .modal-body h2 {
+    font-size: 1.5rem !important; 
+  } */
+}
+@media (max-width: 768px) {
+  #home-page {
+    padding-top: 72px !important; /* Adjust based on your navbar's height */
+  }
+
+  #home-page .modal-body h2 {
     font-size: 1.5rem !important; /* Adjust to fit within the modal */
   }
 }
