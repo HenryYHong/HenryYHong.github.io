@@ -1,20 +1,14 @@
-# My Personal Website
+# Henry Hong's Portfolio Website
 
-Welcome to my personal website! This site showcases my projects, skills, and interests. Below, you'll find links to sections of my site and key details about me.
+Welcome to my personal website, [henryyhong.github.io](https://henryyhong.github.io/home.html)! This platform showcases my academic journey, technical projects, and professional experiences.
 
-## 🌟 Features
-- **About Me**: Learn more about my background and interests.
-- **Projects**: Explore my portfolio of projects, including AI, web development, and more.
-- **Blog**: Read articles on topics I'm passionate about.
-- **Contact**: Get in touch with me through my contact form or social media links.
+## About the Website
+- **Purpose:** The website highlights my interests in computer science, cognitive science, and research. It includes details about my portfolio, career timeline, and contact information.
+- **Features:**
+  - A responsive and interactive layout for browsing my achievements and projects.
+  - A timeline that outlines my academic and professional milestones.
+  - Modal windows for detailed project overviews and technical insights.
+  - Links to my GitHub, LinkedIn, and email for networking or inquiries.
 
-## 🛠️ Technologies Used
-- **HTML/CSS**: For styling and layout
-- **JavaScript**: For interactivity
-- **Markdown**: For creating and managing content
-- **GitHub Pages**: For hosting
-
-## 🚀 How to Access the Website
-Visit my website here: [https://henryyhong.github.io](https://henryyhong.github.io)
-
-## 📂 Project Structure
+## Accessing the Website
+Visit [henryyhong.github.io/home.html](https://henryyhong.github.io/home.html) to explore my personal portfolio. Feel free to reach out via the contact links provided on the site!
