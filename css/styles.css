@@ -11277,3 +11277,28 @@ a {
 #skills .row.text-center {
   justify-content: center;
 }
+
+@media (max-width: 768px) {
+  .modal-dialog {
+    width: 90%; /* Set the width to 90% of the viewport width */
+    max-width: 100%; /* Ensure it doesn't exceed the screen width */
+    margin: 0 auto; /* Center the modal */
+  }
+
+  .modal-content {
+    padding: 15px; /* Add some padding to ensure content is readable */
+    font-size: 14px; /* Adjust font size for better readability */
+  }
+}
+@media (max-width: 768px) {
+  .modal-dialog {
+    width: 90% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  .modal-content {
+    padding: 15px !important;
+    font-size: 14px !important;
+  }
+}
