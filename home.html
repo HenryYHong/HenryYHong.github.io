@@ -2096,12 +2096,14 @@
 
     <script>
   document.querySelectorAll('.js-scroll-trigger').forEach(link => {
-    link.addEventListener('click', function (e) {
+  link.addEventListener('click', function (e) {
+    const targetId = this.getAttribute('href'); // Get the target section ID or URL
+
+    // Check if the href is an internal link (starts with '#')
+    if (targetId.startsWith('#')) {
       e.preventDefault(); // Prevent default anchor click behavior
 
-      const targetId = this.getAttribute('href'); // Get the target section ID
       const targetSection = document.querySelector(targetId);
-
       if (targetSection) {
         const offset = 50; // Adjust this value for how much higher you want the scroll
         const targetPosition = targetSection.offsetTop - offset; // Calculate position
@@ -2112,8 +2114,9 @@
           behavior: 'smooth',
         });
       }
-    });
+    }
   });
+});
 </script>
 
   </body>
