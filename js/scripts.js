@@ -55,3 +55,97 @@
   // Collapse the navbar when page is scrolled
   $(window).scroll(navbarCollapse);
 })(jQuery); // End of use strict
+
+// Secret DevTools easter egg: show a unique banner with Henry's name
+(function () {
+  var hasLoggedEasterEgg = false;
+  var DEVTOOLS_THRESHOLD_PX = 170;
+
+  function isDevToolsOpen() {
+    var widthGap = window.outerWidth - window.innerWidth;
+    var heightGap = window.outerHeight - window.innerHeight;
+    return (
+      widthGap > DEVTOOLS_THRESHOLD_PX || heightGap > DEVTOOLS_THRESHOLD_PX
+    );
+  }
+
+  function logHenryBanner(force) {
+    if (hasLoggedEasterEgg && !force) return;
+    hasLoggedEasterEgg = true;
+
+    // Keyboard-art (ASCII) banner for "henry hong"
+    var aa = [
+      " _   _  ______ _   _ _____  __   __   _   _   ____   _   _   ____  ",
+      "| | | | |  ____| \\ | |  __\\ \\ \\ / /  | | | | / __\\ | \\ | | / __\\ ",
+      "| | | | | |__  |  \\| | |  | | \\ V /   | |_| || |  | ||  \\| || |  | |",
+      "| | | | |  __| | . ` | |  | |  > <    |  _  || |  | || . ` || |  | |",
+      "| |_| | | |____| |\\  | |__| | / . \\   | | | || |__| || |\\  || |__| |",
+      " \\___/  |______|_| \\_|_____/ /_/ \\_\\  |_| |_| \\____/ |_| \\_| \\____/ ",
+      "",
+      " _   _   ____   _   _   ____  _   _  _____ ",
+      "| | | | / __\\ | \\ | | / __\\ | \\ | ||_   _|",
+      "| |_| || |  | ||  \\| || |  | ||  \\| |  | |  ",
+      "|  _  || |  | || . ` || |  | || . ` |  | |  ",
+      "| | | || |__| || |\\  || |__| || |\\  | _| |_ ",
+      "|_| |_| \\____/ |_| \\_| \\____/ |_| \\_| \\_____|",
+    ].join("\n");
+
+    var aaStyle = [
+      "color:#fed136",
+      "background:#111",
+      "padding:6px 8px",
+      "border:1px solid #333",
+      "border-radius:6px",
+      "box-shadow: 0 8px 24px rgba(254,209,54,.12) inset, 0 0 24px rgba(254,209,54,.15)",
+      "font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+      "line-height:1.2",
+    ].join(";");
+
+    // Neon gold headline (no rainbow)
+    var nameStyle = [
+      "color:#fed136",
+      "font-weight:900",
+      "font-size:40px",
+      "letter-spacing:2px",
+      "padding:4px 6px 2px",
+      "text-shadow: 0 2px 4px rgba(0,0,0,.55), 0 0 12px rgba(254,209,54,.55), 0 0 28px rgba(254,209,54,.35)",
+      "-webkit-text-stroke:1px rgba(0,0,0,.35)",
+      "font-family: Montserrat, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+    ].join(";");
+
+    var sparkleStyle = [
+      "color:#ffd166",
+      "font-size:14px",
+      "letter-spacing:3px",
+    ].join(";");
+
+    // Use %c to apply styles to the output
+    try {
+      console.log("%chenry hong", nameStyle);
+    } catch (e) {
+      // Fallback with plain logs
+      console.log("henry hong");
+    }
+  }
+
+  // Poll periodically and also on resize to detect DevTools
+  var checkIntervalId = setInterval(function () {
+    if (isDevToolsOpen()) {
+      logHenryBanner();
+      clearInterval(checkIntervalId);
+    }
+  }, 600);
+
+  window.addEventListener("resize", function () {
+    if (isDevToolsOpen()) {
+      logHenryBanner();
+    }
+  });
+
+  // Manual trigger for the console: type showHenry() to display the banner
+  try {
+    window.showHenry = function () {
+      logHenryBanner(true);
+    };
+  } catch (e) {}
+})();
