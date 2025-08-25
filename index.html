@@ -127,12 +127,11 @@
         <div class="masthead-subheading">Engineer, Musician, Educator</div>
         <div class="masthead-heading">Henry Hong</div>
         <p class="text-muted">Berkeley, CA</p>
-        <a
+        <!-- <a
           class="btn btn-primary btn-xl text-uppercase js-scroll-trigger"
-          href="assets/img/other/Henry_Yang_Hong_s_Resume.pdf"
-          target="_blank"
-          >Resume</a
-        >
+          href="#contact"
+          >Contact</a
+        > -->
       </div>
       <div id="particles-js"></div>
     </header>
@@ -192,7 +191,7 @@
                 >Data 198</a> and a UCS1 for <a href="https://ds100.org/sp25/" target="_blank"
                 >Data 100</a
               >. 
-                I am also conducting research at UCSF. In my free time, I love playing the piano and alto saxophone
+                I am also conducting research at <a href="https://bair.berkeley.edu/" target="_blank">Berkeley Artificial Intelligence Research (BAIR)</a>. In my free time, I love playing the piano and alto saxophone
                  and exploring museums. You can learn all
               about me on my website, including my experiences, portfolio,
               contact information, and
@@ -215,13 +214,35 @@
         <div class="text-center">
           <h2 class="section-heading text-uppercase">Timeline</h2>
           <h3 class="section-subheading text-muted">
-            A brief overview of my college career thus far
+            A brief overview of my college journey thus far
           </h3>
         </div>
         <ul class="timeline">
           
-          <!-- Summer 2025: Amazon SDE Intern -->
+          <!-- Fall 2025: Undergraduate Researcher at BAIR -->
           <li>
+            <a data-toggle="modal" href="#timelineModal-bair">
+              <div class="timeline-image">
+                <img
+                  class="rounded-circle img-fluid"
+                  src="assets/img/bair.jpg"
+                  alt="BAIR"
+                />
+              </div>
+            </a>
+            <div class="timeline-panel">
+              <div class="timeline-heading">
+                <h4>Fall 2025</h4>
+                <h4 class="subheading">ML Researcher at BAIR</h4>
+              </div>
+              <div class="timeline-body">
+                <p class="text-muted">Researching an interpretable speech world model and building multi-task datasets with LLM-guided parsing</p>
+              </div>
+            </div>
+          </li>
+
+          <!-- Summer 2025: Amazon SDE Intern -->
+          <li class="timeline-inverted">
             <a data-toggle="modal" href="#timelineModal-11">
               <div class="timeline-image">
                 <img
@@ -239,15 +260,15 @@
                 </h4>
               </div>
               <div class="timeline-body">
-                <p class="text-muted">
-                  Incoming Software Development Engineer Intern at Amazon
-                </p>
+                <p class="text-muted">Built a multi-agent pipeline for tax anomaly detection using SageMaker and Bedrock with RAG-based verification</p>
               </div>
             </div>
           </li>
 
+          
+
           <!-- Spring 2025: Data 100 UCS1 -->
-          <li class="timeline-inverted">
+          <li>
             <a data-toggle="modal" href="#timelineModal-10">
               <div class="timeline-image">
                 <img
@@ -273,7 +294,7 @@
           </li>
 
           <!-- Fall 2024: Computational Neuroscience Researcher -->
-          <li>
+          <li class="timeline-inverted">
             <a data-toggle="modal" href="#timelineModal-6">
               <div class="timeline-image">
                 <img
@@ -300,7 +321,7 @@
           </li>
 
           <!-- Summer 2024: Machine Learning Consultant -->
-          <li class="timeline-inverted">
+          <li>
             <a data-toggle="modal" href="#timelineModal-5">
               <div class="timeline-image">
                 <img
@@ -325,7 +346,7 @@
           </li>
 
           <!-- Dec. 2023 – May 2024: Data Science Research -->
-          <li>
+          <li class="timeline-inverted">
             <a data-toggle="modal" href="#timelineModal-8">
               <div class="timeline-image">
                 <img
@@ -350,7 +371,7 @@
           </li>
 
           <!-- Spring 2024: DeCal Instructor -->
-          <li class="timeline-inverted">
+          <li>
             <a data-toggle="modal" href="#timelineModal-7">
               <div class="timeline-image">
                 <img
@@ -373,8 +394,8 @@
             </div>
           </li>
 
-          <!-- Fall 2023: Full-Stack Developer -->
-          <li>
+          <!-- Fall 2023: Full-Stack Developer (commented out) -->
+          <!-- <li>
             <a data-toggle="modal" href="#timelineModal-4">
               <div class="timeline-image">
                 <img
@@ -396,7 +417,7 @@
                 </p>
               </div>
             </div>
-          </li>
+          </li> -->
 
           <!-- Fall 2023: Started Undergraduate Studies -->
           <li class="timeline-inverted">
@@ -447,18 +468,18 @@
               <h2>SDE Intern</h2>
               <p class="item-intro">Amazon</p>
               <ul>
-                <li>
-                  Incoming intern in Seattle, Washington
-                </li>
+                <li>Built multi-agent pipeline to detect anomalous tax rates in invoices</li>
+                <li>Developed tax-line extraction agent in SageMaker</li>
+                <li>Used Bedrock + RAG to retrieve and cross-verify state tax data</li>
               </ul>
               <ul class="list-inline">
                 <li>
                   <b>Tech:</b> Python • Pandas • NumPy • Jupyter • Data Science • Machine Learning
                 </li>
-                <!-- <li>
+                <li>
                   <b>Link:</b>
-                  <a href="https://ds100.org/sp25/" target="_blank">Data 100</a>
-                </li> -->
+                  <a href="https://www.amazon.com/" target="_blank">Amazon</a>
+                </li>
                 <li><b>Date:</b> Summer 2025</li>
               </ul>
               <button
@@ -786,8 +807,8 @@
       </div>
     </div>
 
-    <!-- Fall 2023: Full-Stack Developer -->
-    <div
+    <!-- Fall 2023: Full-Stack Developer (commented out) -->
+    <!-- <div
       class="timeline-modal modal fade"
       id="timelineModal-4"
       tabindex="-1"
@@ -830,6 +851,56 @@
                       >
                     </li>
                     <li><b>Date:</b> Fall 2023</li>
+                  </ul>
+                  <button
+                    class="btn btn-primary"
+                    data-dismiss="modal"
+                    type="button"
+                  >
+                    <i class="fas fa-times mr-1"></i>Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div> -->
+
+    <!-- 2025: Undergraduate Researcher at BAIR Modal -->
+    <div
+      class="timeline-modal modal fade"
+      id="timelineModal-bair"
+      tabindex="-1"
+      role="dialog"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="close-modal" data-dismiss="modal">
+            <img src="assets/img/close-icon.svg" alt="Close" />
+          </div>
+          <div class="container">
+            <div class="row justify-content-center">
+              <div class="col-lg-8">
+                <div class="modal-body">
+                  <h2>Undergraduate Researcher</h2>
+                  <p class="item-intro">Berkeley AI Research (BAIR) — Speech Group</p>
+                  <ul>
+                    <li>
+                      Designing a speech world model grounded in cognitive science, representing auditory decoding and theory of mind with modular neural networks.
+                    </li>
+                    <li>
+                      Building multi-task speech datasets from open-source corpora via LLM-assisted parsing for semi-supervised, curriculum-based training.
+                    </li>
+                  </ul>
+                  <ul class="list-inline">
+                    <li><b>Tech:</b> PyTorch • TensorFlow • Python</li>
+                    <li>
+                      <b>Link:</b>
+                      <a href="https://bair.berkeley.edu/" target="_blank">BAIR</a>
+                    </li>
+                    <li><b>Date:</b> 2025 – Present</li>
                   </ul>
                   <button
                     class="btn btn-primary"

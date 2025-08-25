@@ -1,4 +1,51 @@
-@charset "UTF-8";
+/* Widen timeline modals while staying centered */
+.timeline-modal .modal-dialog {
+  max-width: 900px;
+}
+.timeline-modal .modal-content .modal-body {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+/* Make modal content span wider and reduce side padding */
+@media (min-width: 992px) {
+  .timeline-modal .modal-dialog {
+    max-width: 900px;
+  }
+}
+
+.timeline-modal .row .col-lg-8 {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+.timeline-modal .modal-content .modal-body {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+/* Restore a narrower content column on large screens so text wraps earlier */
+@media (min-width: 992px) {
+  .timeline-modal .row .col-lg-8 {
+    flex: 0 0 66.666667%;
+    max-width: 66.666667%;
+  }
+}
+
+/* Indent bullet lists slightly inside timeline modals */
+.timeline-modal .modal-content .modal-body ul:not(.list-inline) {
+  padding-left: 1.5rem;
+}
+
+/* Apply same indent to ordered lists */
+.timeline-modal .modal-content .modal-body ol {
+  padding-left: 1.5rem;
+}
+
+/* Slight extra spacing so text sits a touch right of bullets */
+.timeline-modal .modal-content .modal-body li {
+  margin-left: 0.25rem;
+}
 /*!
 * Start Bootstrap - Agency v6.0.0 (https://startbootstrap.com/template-overviews/agency)
 * Copyright 2013-2020 Start Bootstrap
