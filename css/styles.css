@@ -11212,6 +11212,19 @@ a {
   margin: 0 auto; /* Center the section */
 }
 
+/* About section: black heading; links bold + dark yellow */
+#about .section-heading {
+  color: #000;
+}
+
+#about a {
+  color: #d1a600;
+}
+
+#about a:hover {
+  color: #b88f00;
+}
+
 /* Left Side: Text */
 .about-text {
   flex: 1;
