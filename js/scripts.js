@@ -137,3 +137,73 @@
 
 // (Removed) Timeline enhancements: keyboard navigation + deep-link modals
 // Removed block
+
+// Ensure close buttons work on mobile devices
+(function() {
+  'use strict';
+  
+  // Use event delegation to handle close button clicks/touches
+  // This works even if buttons are added dynamically
+  document.addEventListener('click', function(e) {
+    var closeButton = e.target.closest('.close-modal');
+    if (closeButton) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Find the modal and close it
+      var modal = closeButton.closest('.modal');
+      if (modal) {
+        // Use Bootstrap's modal method if available
+        if (typeof jQuery !== 'undefined' && jQuery(modal).modal) {
+          jQuery(modal).modal('hide');
+        } else {
+          // Fallback: manually hide the modal
+          modal.classList.remove('show');
+          modal.setAttribute('aria-hidden', 'true');
+          modal.style.display = 'none';
+          document.body.classList.remove('modal-open');
+          document.body.style.overflow = '';
+          document.body.style.paddingRight = '';
+          
+          // Remove backdrop if it exists
+          var backdrop = document.querySelector('.modal-backdrop');
+          if (backdrop) {
+            backdrop.remove();
+          }
+        }
+      }
+    }
+  }, true); // Use capture phase to ensure we catch the event early
+  
+  // Also handle touchend for better mobile support
+  document.addEventListener('touchend', function(e) {
+    var closeButton = e.target.closest('.close-modal');
+    if (closeButton) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Find the modal and close it
+      var modal = closeButton.closest('.modal');
+      if (modal) {
+        // Use Bootstrap's modal method if available
+        if (typeof jQuery !== 'undefined' && jQuery(modal).modal) {
+          jQuery(modal).modal('hide');
+        } else {
+          // Fallback: manually hide the modal
+          modal.classList.remove('show');
+          modal.setAttribute('aria-hidden', 'true');
+          modal.style.display = 'none';
+          document.body.classList.remove('modal-open');
+          document.body.style.overflow = '';
+          document.body.style.paddingRight = '';
+          
+          // Remove backdrop if it exists
+          var backdrop = document.querySelector('.modal-backdrop');
+          if (backdrop) {
+            backdrop.remove();
+          }
+        }
+      }
+    }
+  }, true); // Use capture phase
+})();
