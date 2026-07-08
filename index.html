@@ -2,6 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem("theme-preference") || "system";
+          var resolved =
+            pref === "dark"
+              ? "dark"
+              : pref === "light"
+              ? "light"
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          document.documentElement.setAttribute("data-theme", resolved);
+          document.documentElement.setAttribute("data-theme-preference", pref);
+          document.documentElement.style.colorScheme = resolved;
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
@@ -58,6 +78,7 @@
     />
     <!-- Core theme CSS (includes Bootstrap)-->
     <link href="css/styles.css" rel="stylesheet" />
+    <link href="css/theme.css" rel="stylesheet" />
   </head>
   <body id="home-page">
     <!-- Navigation-->
@@ -96,6 +117,17 @@
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#contact">Contact</a>
             </li>
+            <li class="nav-item nav-item-theme">
+              <button
+                type="button"
+                class="theme-toggle"
+                id="themeToggle"
+                aria-label="Color theme: System"
+                title="Color theme: System (click to change)"
+              >
+                <i class="fas fa-adjust theme-toggle-icon" aria-hidden="true"></i>
+              </button>
+            </li>
             <!-- <li class="dropdown-menu"><div class="dropdown-menu">Contact</div>
                             <button class="dropdown-menu" href="cs61a.html">More</a>
                             <div class="dropright">Hello</div>
@@ -126,6 +158,15 @@
         <div class="masthead-subheading">Engineer and Educator</div>
       </div>
       <div id="particles-js"></div>
+      <button
+        class="particles-toggle"
+        id="particlesToggle"
+        type="button"
+        aria-pressed="false"
+        aria-label="Toggle particle motion"
+      >
+        <i class="fas fa-wind"></i> Motion off
+      </button>
     </header>
 
     <!-- Services-->
@@ -177,14 +218,13 @@
               and
               <a href="https://cdss.berkeley.edu/dsus" target="_blank"
                 >data science</a>. At Berkeley, I'm the President of the
-              <a href="https://www.dssberkeley.org/" target="_blank">Data Science Society</a>, serve on the
+              <a href="https://www.dssberkeley.org/" target="_blank">Data Science Society</a> and serve on the
               <a href="https://ds100.org/" target="_blank">Data 100</a>
-              course staff (and I'm an incoming TA for Data 102), and conduct machine learning research at
+              course staff (I'm also an incoming TA for
+              <a href="https://data102.org/" target="_blank">Data 102</a>). I conduct machine learning research at
               <a href="https://bair.berkeley.edu/" target="_blank">Berkeley Artificial Intelligence Research (BAIR)</a>, where I co-authored the
               <a href="https://arxiv.org/abs/2512.05933" target="_blank">Speech World Model</a> accepted to ICLR 2026. I've also interned twice as a Software Development Engineer at Amazon. In my free time, I love playing the piano and alto saxophone
-                 and exploring museums. You can learn all
-              about me on my website, including my experiences, portfolio, and
-              contact information.
+                 and exploring museums.
             </p>
           </div>
         </div>
@@ -199,7 +239,7 @@
         <div class="text-center">
           <h2 class="section-heading text-uppercase">Timeline</h2>
           <h3 class="section-subheading text-muted">
-            A brief overview of my college journey thus far
+            An overview of my college journey
           </h3>
           <p class="timeline-scroll-hint text-muted">
             <i class="fas fa-arrows-alt-h"></i> Scroll to explore
@@ -1208,19 +1248,19 @@
         <div class="text-center">
           <h2 class="section-heading text-uppercase">Portfolio</h2>
           <h3 class="section-subheading text-muted">
-            Some projects I've worked on
+            A selection of projects I've worked on
           </h3>
         </div>
 
         <div class="portfolio-grid">
           <!-- Project 1: ASL Language Classifier -->
           <div class="portfolio-card">
-            <div class="portfolio-item">
-              <a
-                class="portfolio-link"
-                data-toggle="modal"
-                href="#portfolioModal1"
-              >
+            <a
+              class="portfolio-link"
+              data-toggle="modal"
+              href="#portfolioModal1"
+            >
+              <div class="portfolio-item">
                 <div class="portfolio-hover">
                   <div class="portfolio-hover-content">
                     <i class="fas fa-plus fa-3x"></i>
@@ -1233,26 +1273,26 @@
                   width="400"
                   height="300"
                 />
-              </a>
-              <div class="portfolio-caption">
-                <div class="portfolio-caption-heading">
-                  ASL Gesture Classifier
-                </div>
-                <div class="portfolio-caption-subheading text-muted">
-                  Computer Vision Project
+                <div class="portfolio-caption">
+                  <div class="portfolio-caption-heading">
+                    ASL Gesture Classifier
+                  </div>
+                  <div class="portfolio-caption-subheading text-muted">
+                    Computer Vision Project
+                  </div>
                 </div>
               </div>
-            </div>
+            </a>
           </div>
 
           <!-- Project 2: Music Genre Classifier -->
           <div class="portfolio-card">
-            <div class="portfolio-item">
-              <a
-                class="portfolio-link"
-                data-toggle="modal"
-                href="#portfolioModal2"
-              >
+            <a
+              class="portfolio-link"
+              data-toggle="modal"
+              href="#portfolioModal2"
+            >
+              <div class="portfolio-item">
                 <div class="portfolio-hover">
                   <div class="portfolio-hover-content">
                     <i class="fas fa-plus fa-3x"></i>
@@ -1265,26 +1305,26 @@
                   width="400"
                   height="300"
                 />
-              </a>
-              <div class="portfolio-caption">
-                <div class="portfolio-caption-heading">
-                  Music Genre Classifier
-                </div>
-                <div class="portfolio-caption-subheading text-muted">
-                  Machine Learning
+                <div class="portfolio-caption">
+                  <div class="portfolio-caption-heading">
+                    Music Genre Classifier
+                  </div>
+                  <div class="portfolio-caption-subheading text-muted">
+                    Machine Learning
+                  </div>
                 </div>
               </div>
-            </div>
+            </a>
           </div>
 
           <!-- Project 3: Deep Oculos -->
           <div class="portfolio-card">
-            <div class="portfolio-item">
-              <a
-                class="portfolio-link"
-                data-toggle="modal"
-                href="#portfolioModal3"
-              >
+            <a
+              class="portfolio-link"
+              data-toggle="modal"
+              href="#portfolioModal3"
+            >
+              <div class="portfolio-item">
                 <div class="portfolio-hover">
                   <div class="portfolio-hover-content">
                     <i class="fas fa-plus fa-3x"></i>
@@ -1297,24 +1337,24 @@
                   width="400"
                   height="300"
                 />
-              </a>
-              <div class="portfolio-caption">
-                <div class="portfolio-caption-heading">Deep Oculos</div>
-                <div class="portfolio-caption-subheading text-muted">
-                  AI for Eye Disease Tracking
+                <div class="portfolio-caption">
+                  <div class="portfolio-caption-heading">Deep Oculos</div>
+                  <div class="portfolio-caption-subheading text-muted">
+                    AI for Eye Disease Tracking
+                  </div>
                 </div>
               </div>
-            </div>
+            </a>
           </div>
 
           <!-- Project 4: CommonGround -->
           <div class="portfolio-card">
-            <div class="portfolio-item">
-              <a
-                class="portfolio-link"
-                data-toggle="modal"
-                href="#portfolioModal4"
-              >
+            <a
+              class="portfolio-link"
+              data-toggle="modal"
+              href="#portfolioModal4"
+            >
+              <div class="portfolio-item">
                 <div class="portfolio-hover">
                   <div class="portfolio-hover-content">
                     <i class="fas fa-plus fa-3x"></i>
@@ -1327,26 +1367,26 @@
                   width="400"
                   height="300"
                 />
-              </a>
-              <div class="portfolio-caption">
-                <div class="portfolio-caption-heading">
-                  CommonGround
-                </div>
-                <div class="portfolio-caption-subheading text-muted">
-                  Interest-Based Student Matching
+                <div class="portfolio-caption">
+                  <div class="portfolio-caption-heading">
+                    CommonGround
+                  </div>
+                  <div class="portfolio-caption-subheading text-muted">
+                    Interest-Based Student Matching
+                  </div>
                 </div>
               </div>
-            </div>
+            </a>
           </div>
 
           <!-- Project 5: Spectrogram Transfer Learning -->
           <div class="portfolio-card">
-            <div class="portfolio-item">
-              <a
-                class="portfolio-link"
-                data-toggle="modal"
-                href="#portfolioModal5"
-              >
+            <a
+              class="portfolio-link"
+              data-toggle="modal"
+              href="#portfolioModal5"
+            >
+              <div class="portfolio-item">
                 <div class="portfolio-hover">
                   <div class="portfolio-hover-content">
                     <i class="fas fa-plus fa-3x"></i>
@@ -1359,16 +1399,16 @@
                   width="400"
                   height="300"
                 />
-              </a>
-              <div class="portfolio-caption">
-                <div class="portfolio-caption-heading">
-                  Spectrogram Transfer Learning
-                </div>
-                <div class="portfolio-caption-subheading text-muted">
-                  Urban Sound Classification
+                <div class="portfolio-caption">
+                  <div class="portfolio-caption-heading">
+                    Spectrogram Transfer Learning
+                  </div>
+                  <div class="portfolio-caption-subheading text-muted">
+                    Urban Sound Classification
+                  </div>
                 </div>
               </div>
-            </div>
+            </a>
           </div>
 
         </div>
@@ -1377,6 +1417,7 @@
 
     <!-- Contact-->
     <section class="page-section-short" id="contact">
+      <div id="particles-contact"></div>
       <div class="container">
         <div class="text-center">
           <h2 class="section-heading text-uppercase">Contact</h2>
@@ -1405,6 +1446,9 @@
             ></a>
           </div>
         </div>
+      </div>
+      <div class="particles-hint">
+        <i class="fas fa-hand-pointer"></i> Hover to play with the particles
       </div>
     </section>
     <!-- Clients-->
@@ -2391,67 +2435,117 @@
     <script src="https://unpkg.com/gsap@3/dist/ScrollTrigger.min.js"></script>
     <!-- Core theme JS-->
     <script src="js/scripts.js"></script>
+    <script src="js/theme.js"></script>
     <!-- <script src="js/scrolling.js"></script> -->
 
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <script>
-      particlesJS("particles-js", {
-        particles: {
-          number: {
-            value: 50,
-            density: {
+      function makeParticlesConfig(options) {
+        options = options || {};
+        return {
+          particles: {
+            number: {
+              value: 32,
+              density: {
+                enable: true,
+                value_area: 900,
+              },
+            },
+            color: {
+              value: "#ffffff",
+            },
+            shape: {
+              type: "circle",
+            },
+            opacity: {
+              value: 0.7,
+            },
+            size: {
+              value: 2.5,
+            },
+            line_linked: {
               enable: true,
-              value_area: 800,
+              distance: 130,
+              color: "#ffffff",
+              opacity: 0.32,
+              width: 1,
             },
-          },
-          color: {
-            value: "#ffffff",
-          },
-          shape: {
-            type: "circle",
-          },
-          opacity: {
-            value: 0.5,
-          },
-          size: {
-            value: 3,
-          },
-          line_linked: {
-            enable: true,
-            distance: 150,
-            color: "#ffffff",
-            opacity: 0.4,
-            width: 1,
-          },
-          move: {
-            enable: true,
-            speed: 4,
-          },
-        },
-        interactivity: {
-          detect_on: "canvas",
-          events: {
-            onhover: {
+            move: {
               enable: true,
-              mode: "repulse",
-            },
-            onclick: {
-              enable: true,
-              mode: "push",
+              speed: options.speed != null ? options.speed : 0,
             },
           },
-          modes: {
-            repulse: {
-              distance: 150,
-              duration: 0.4,
+          interactivity: {
+            detect_on: "canvas",
+            events: {
+              onhover: {
+                enable: !!options.interactive,
+                mode: "repulse",
+              },
+              onclick: {
+                enable: !!options.interactive,
+                mode: "push",
+              },
             },
-            push: {
-              particles_nb: 4,
+            modes: {
+              repulse: {
+                distance: options.repulseDistance != null ? options.repulseDistance : 95,
+                duration: options.repulseDuration != null ? options.repulseDuration : 0.3,
+              },
+              push: {
+                particles_nb: options.pushParticles != null ? options.pushParticles : 3,
+              },
             },
           },
-        },
-        retina_detect: true,
-      });
+          retina_detect: true,
+        };
+      }
+
+      particlesJS("particles-js", makeParticlesConfig({ speed: 0, interactive: true }));
+
+      var mastheadEl = document.querySelector("header.masthead");
+      var mastheadPJS = window.pJSDom && window.pJSDom[0] && window.pJSDom[0].pJS;
+      if (mastheadPJS) {
+        mastheadPJS.interactivity.events.onhover.enable = false;
+        mastheadPJS.interactivity.events.onclick.enable = false;
+      }
+
+      var particlesToggle = document.getElementById("particlesToggle");
+      var particlesJsEl = document.getElementById("particles-js");
+      var mastheadParticlesMoving = false;
+      if (particlesToggle) {
+        particlesToggle.addEventListener("click", function () {
+          mastheadParticlesMoving = !mastheadParticlesMoving;
+          if (mastheadPJS) {
+            mastheadPJS.particles.move.speed = mastheadParticlesMoving ? 1.0 : 0;
+            mastheadPJS.interactivity.events.onhover.enable = mastheadParticlesMoving;
+            mastheadPJS.interactivity.events.onclick.enable = mastheadParticlesMoving;
+          }
+          if (particlesJsEl) {
+            particlesJsEl.classList.toggle("is-interactive", mastheadParticlesMoving);
+          }
+          if (mastheadEl) {
+            mastheadEl.classList.toggle("is-particles-interactive", mastheadParticlesMoving);
+          }
+          particlesToggle.classList.toggle("is-active", mastheadParticlesMoving);
+          particlesToggle.setAttribute("aria-pressed", mastheadParticlesMoving);
+          particlesToggle.innerHTML =
+            '<i class="fas fa-wind"></i> Motion ' + (mastheadParticlesMoving ? "on" : "off");
+        });
+      }
+
+      if (document.getElementById("particles-contact")) {
+        particlesJS("particles-contact", makeParticlesConfig({
+          speed: 0.9,
+          interactive: true,
+          repulseDistance: 95,
+          repulseDuration: 0.3,
+          pushParticles: 3,
+        }));
+        window.addEventListener("load", function () {
+          window.dispatchEvent(new Event("resize"));
+        });
+      }
     </script>
 
     <script>

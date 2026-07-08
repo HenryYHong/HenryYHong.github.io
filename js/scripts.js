@@ -219,30 +219,62 @@
   var btnRight = document.querySelector(".timeline-scroll-btn-right");
   var scrollAmount = 400;
 
+  function getMaxScroll() {
+    return Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth);
+  }
+
   function updateButtons() {
     if (!btnLeft || !btnRight) return;
+    var maxScroll = getMaxScroll();
+    if (maxScroll <= 0) {
+      btnLeft.style.opacity = "0.3";
+      btnRight.style.opacity = "0.3";
+      btnLeft.disabled = true;
+      btnRight.disabled = true;
+      return;
+    }
     var atStart = scrollEl.scrollLeft <= 10;
-    var atEnd =
-      scrollEl.scrollLeft + scrollEl.clientWidth >= scrollEl.scrollWidth - 10;
+    var atEnd = scrollEl.scrollLeft >= maxScroll - 10;
     btnLeft.style.opacity = atStart ? "0.3" : "";
     btnRight.style.opacity = atEnd ? "0.3" : "";
     btnLeft.disabled = atStart;
     btnRight.disabled = atEnd;
   }
 
+  function scrollTimeline(direction) {
+    var maxScroll = getMaxScroll();
+    if (maxScroll <= 0) return;
+    var next = scrollEl.scrollLeft + direction * scrollAmount;
+    scrollEl.scrollTo({
+      left: Math.max(0, Math.min(maxScroll, next)),
+      behavior: "smooth",
+    });
+  }
+
+  scrollEl.scrollLeft = 0;
+  scrollEl.addEventListener("scroll", updateButtons);
+
   if (btnLeft) {
     btnLeft.addEventListener("click", function () {
-      scrollEl.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+      scrollTimeline(-1);
     });
   }
 
   if (btnRight) {
     btnRight.addEventListener("click", function () {
-      scrollEl.scrollBy({ left: scrollAmount, behavior: "smooth" });
+      scrollTimeline(1);
     });
   }
 
-  scrollEl.addEventListener("scroll", updateButtons);
+  window.addEventListener("load", function () {
+    scrollEl.scrollLeft = 0;
+    updateButtons();
+  });
+
+  if (window.ResizeObserver) {
+    new ResizeObserver(updateButtons).observe(scrollEl);
+  }
+
   updateButtons();
 
   document

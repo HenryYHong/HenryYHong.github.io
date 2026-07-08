@@ -11146,7 +11146,110 @@ a {
   left: 0px;
   padding-bottom: 0rem;
   position: absolute;
+  pointer-events: none;
+  opacity: 0.7;
+  z-index: 1;
+}
+
+#particles-js.is-interactive {
   pointer-events: all;
+  z-index: 1;
+}
+
+header.masthead.is-particles-interactive .masthead-content {
+  pointer-events: none;
+}
+
+header.masthead.is-particles-interactive .particles-toggle {
+  pointer-events: all;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #particles-js,
+  #particles-contact {
+    display: none;
+  }
+}
+
+#particles-contact {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: all;
+  opacity: 0.7;
+  z-index: 0;
+}
+
+#particles-contact canvas.particles-js-canvas-el {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.particles-hint {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.85rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  user-select: none;
+}
+
+.particles-hint i {
+  font-size: 0.8rem;
+}
+
+.particles-toggle {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.85rem;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.particles-toggle:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.particles-toggle.is-active {
+  color: var(--gold-bright, #d4a017);
+  border-color: rgba(212, 160, 23, 0.45);
+  background: rgba(212, 160, 23, 0.12);
+}
+
+@media (max-width: 575px) {
+  .particles-hint {
+    font-size: 0.65rem;
+    right: 0.75rem;
+  }
+
+  .particles-toggle {
+    font-size: 0.65rem;
+    right: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
 }
 
 /* Dropdown Button */
@@ -11466,7 +11569,7 @@ a {
 .timeline-scroll {
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
@@ -11708,6 +11811,12 @@ a {
 }
 
 .timeline-scroll-outer:hover .timeline-scroll-btn,
+.timeline-scroll-btn:focus,
+.timeline-scroll-btn:not(:disabled) {
+  pointer-events: auto;
+}
+
+.timeline-scroll-outer:hover .timeline-scroll-btn,
 .timeline-scroll-btn:focus {
   opacity: 1;
   pointer-events: auto;
@@ -11787,7 +11896,10 @@ a {
 
 /* ── Horizontal Scrollable Portfolio ────────────────────────────── */
 
+#portfolio,
 #portfolio.bg-light {
+  position: relative;
+  z-index: 2;
   background-color: #ffffff !important;
 }
 
@@ -12007,6 +12119,9 @@ body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 p {
@@ -12127,6 +12242,8 @@ header.masthead {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
 @media (min-width: 768px) {
@@ -12239,10 +12356,30 @@ header.masthead .masthead-subheading {
 
 /* ── Contact section ────────────────────────────────────────────── */
 section#contact {
-  background-color: #f4f6f8;
+  background: linear-gradient(180deg, #16181c 0%, #0b0c0e 100%);
+  position: relative;
+  overflow: hidden;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 1;
 }
 .page-section-short#contact {
   padding: 3.5rem 0 4rem;
+}
+section#contact .container {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+section#contact .section-heading,
+section#contact .contact-card,
+section#contact .particles-hint {
+  pointer-events: auto;
+}
+section#contact .section-heading {
+  color: #fff;
 }
 .contact-card {
   max-width: 460px;
@@ -12305,19 +12442,28 @@ section#contact {
   flex-wrap: wrap;
   justify-content: center;
   gap: 2rem;
-  max-width: 820px;
+  max-width: 1140px;
   margin: 1rem auto 0;
   padding: 0 1rem;
 }
 
 .portfolio-grid .portfolio-card {
-  flex: 0 0 22rem;
-  max-width: 22rem;
+  flex: 0 1 calc((100% - 4rem) / 3);
+  max-width: 360px;
+  min-width: 260px;
+}
+
+#portfolio .portfolio-grid .portfolio-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  height: 100%;
 }
 
 #portfolio .portfolio-grid .portfolio-item {
   max-width: 100%;
   height: 100%;
+  position: relative;
   border-radius: 12px;
   overflow: hidden;
   background: #fff;
@@ -12331,38 +12477,63 @@ section#contact {
   box-shadow: 0 8px 30px rgba(212, 160, 23, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-#portfolio .portfolio-grid .portfolio-item .portfolio-link {
-  overflow: hidden;
+#portfolio .portfolio-grid .portfolio-link:hover .portfolio-hover {
+  opacity: 1;
 }
 
-#portfolio .portfolio-grid .portfolio-item .portfolio-link img {
+#portfolio .portfolio-grid .portfolio-item .portfolio-hover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(212, 160, 23, 0.92);
+  opacity: 0;
+  transition: opacity ease-in-out 0.25s;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+#portfolio .portfolio-grid .portfolio-item img {
   width: 100%;
   height: 15rem;
   object-fit: cover;
   transition: transform 0.4s ease;
+  display: block;
 }
 
-#portfolio .portfolio-grid .portfolio-card:hover .portfolio-link img {
+#portfolio .portfolio-grid .portfolio-card:hover .portfolio-item img {
   transform: scale(1.05);
 }
 
 #portfolio .portfolio-grid .portfolio-caption {
   padding: 1.25rem;
+  position: relative;
+  z-index: 1;
+  background: #fff;
 }
 
 #portfolio .portfolio-grid .portfolio-caption-heading {
   font-size: 1.25rem;
 }
 
+@media (max-width: 992px) {
+  .portfolio-grid .portfolio-card {
+    flex: 0 1 calc((100% - 2rem) / 2);
+    max-width: 340px;
+  }
+}
+
 @media (max-width: 768px) {
   .portfolio-grid {
     gap: 1.25rem;
   }
+
   .portfolio-grid .portfolio-card {
-    flex: 0 0 18rem;
-    max-width: 18rem;
+    flex: 0 1 100%;
+    max-width: 22rem;
   }
-  #portfolio .portfolio-grid .portfolio-item .portfolio-link img {
+
+  #portfolio .portfolio-grid .portfolio-item img {
     height: 12rem;
   }
 }

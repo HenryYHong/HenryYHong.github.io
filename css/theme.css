@@ -1,0 +1,355 @@
+/* ══════════════════════════════════════════════════════════════════
+   Theme system — light / dark with system preference support
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Fallback before inline script runs (rare) */
+:root:not([data-theme]) {
+  color-scheme: light;
+  --bg-body: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #eef1f5;
+  --bg-surface-muted: #f9fafb;
+  --bg-card: #ffffff;
+  --bg-card-node: #ffffff;
+  --bg-modal: #ffffff;
+  --bg-scroll-btn: #ffffff;
+  --text-primary: #1f2328;
+  --text-secondary: #3f444b;
+  --text-muted: #6b7280;
+  --text-heading: #1f2328;
+  --text-timeline-sub: #212529;
+  --text-modal: #212529;
+  --border-card: rgba(212, 160, 23, 0.25);
+  --timeline-fade: #eef1f5;
+  --scrollbar-track: #e9ecef;
+  --ink: #1f2328;
+  --muted: #6b7280;
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 8px 30px rgba(212, 160, 23, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg-body: #0f1114;
+    --bg-surface: #16181c;
+    --bg-surface-alt: #1a1e24;
+    --bg-surface-muted: #14171c;
+    --bg-card: #1e2329;
+    --bg-card-node: #252b33;
+    --bg-modal: #1e2329;
+    --bg-scroll-btn: #252b33;
+    --text-primary: #e8eaed;
+    --text-secondary: #b8bdc6;
+    --text-muted: #8b939e;
+    --text-heading: #f3f4f6;
+    --text-timeline-sub: #e8eaed;
+    --text-modal: #e8eaed;
+    --border-card: rgba(212, 160, 23, 0.32);
+    --timeline-fade: #1a1e24;
+    --scrollbar-track: #2a3038;
+    --ink: #e8eaed;
+    --muted: #8b939e;
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.2);
+    --shadow-card-hover: 0 8px 32px rgba(212, 160, 23, 0.22), 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-body: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #eef1f5;
+  --bg-surface-muted: #f9fafb;
+  --bg-card: #ffffff;
+  --bg-card-node: #ffffff;
+  --bg-modal: #ffffff;
+  --bg-scroll-btn: #ffffff;
+
+  --text-primary: #1f2328;
+  --text-secondary: #3f444b;
+  --text-muted: #6b7280;
+  --text-heading: #1f2328;
+  --text-timeline-sub: #212529;
+  --text-modal: #212529;
+
+  --border-card: rgba(212, 160, 23, 0.25);
+  --border-subtle: rgba(0, 0, 0, 0.08);
+
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 8px 30px rgba(212, 160, 23, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-image: 0 12px 36px rgba(0, 0, 0, 0.15);
+
+  --timeline-fade: #eef1f5;
+  --scrollbar-track: #e9ecef;
+  --ink: #1f2328;
+  --muted: #6b7280;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-body: #0f1114;
+  --bg-surface: #16181c;
+  --bg-surface-alt: #1a1e24;
+  --bg-surface-muted: #14171c;
+  --bg-card: #1e2329;
+  --bg-card-node: #252b33;
+  --bg-modal: #1e2329;
+  --bg-scroll-btn: #252b33;
+
+  --text-primary: #e8eaed;
+  --text-secondary: #b8bdc6;
+  --text-muted: #8b939e;
+  --text-heading: #f3f4f6;
+  --text-timeline-sub: #e8eaed;
+  --text-modal: #e8eaed;
+
+  --border-card: rgba(212, 160, 23, 0.32);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 8px 32px rgba(212, 160, 23, 0.22), 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-image: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  --timeline-fade: #1a1e24;
+  --scrollbar-track: #2a3038;
+  --ink: #e8eaed;
+  --muted: #8b939e;
+}
+
+/* Smooth theme transitions */
+body,
+.page-section,
+#about,
+#timeline,
+#portfolio,
+#portfolio.bg-light,
+.timeline-horizontal .timeline-panel,
+.timeline-horizontal .timeline-image,
+#portfolio .portfolio-grid .portfolio-item,
+#portfolio .portfolio-grid .portfolio-caption,
+.portfolio-modal .modal-content,
+.timeline-modal .modal-content,
+.modal-content,
+.timeline-scroll-btn,
+.portfolio-scroll-btn {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .page-section,
+  #about,
+  #timeline,
+  #portfolio,
+  .timeline-horizontal .timeline-panel,
+  #portfolio .portfolio-grid .portfolio-item,
+  .modal-content {
+    transition: none;
+  }
+}
+
+/* ── Base ───────────────────────────────────────────────────────── */
+body {
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+}
+
+.page-section#about {
+  background-color: var(--bg-surface);
+}
+
+.about-image img {
+  box-shadow: var(--shadow-image);
+}
+
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+.page-section h2.section-heading,
+.page-section-short h2.section-heading {
+  color: var(--text-heading);
+}
+
+.page-section h3.section-subheading {
+  color: var(--text-muted);
+}
+
+#about .section-heading {
+  color: var(--text-heading);
+}
+
+.about-text p {
+  color: var(--text-secondary);
+}
+
+/* ── Timeline ───────────────────────────────────────────────────── */
+#timeline {
+  background-color: var(--bg-surface-alt) !important;
+}
+
+.timeline-scroll-outer::before {
+  background: linear-gradient(to right, var(--timeline-fade) 30%, transparent);
+}
+
+.timeline-scroll-outer::after {
+  background: linear-gradient(to left, var(--timeline-fade) 30%, transparent);
+}
+
+.timeline-scroll {
+  scrollbar-color: var(--gold, #d4a017) var(--scrollbar-track);
+}
+
+.timeline-scroll::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+#timeline .timeline-horizontal .timeline-panel {
+  background: var(--bg-card);
+  border-color: var(--border-card);
+  box-shadow: var(--shadow-card);
+}
+
+#timeline .timeline-horizontal > li:hover .timeline-panel {
+  box-shadow: var(--shadow-card-hover);
+}
+
+#timeline .timeline-horizontal .timeline-heading h4.subheading {
+  color: var(--text-timeline-sub);
+}
+
+#timeline .timeline-horizontal .timeline-image {
+  background: var(--bg-card-node);
+  box-shadow:
+    0 0 0 8px rgba(212, 160, 23, 0.15),
+    0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.timeline-scroll-btn {
+  background: var(--bg-scroll-btn);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .timeline-scroll-btn:hover {
+  color: #fff;
+}
+
+/* ── Portfolio ────────────────────────────────────────────────────── */
+#portfolio,
+#portfolio.bg-light {
+  background-color: var(--bg-surface-muted) !important;
+}
+
+#portfolio .portfolio-grid .portfolio-item {
+  background: var(--bg-card);
+  border-color: var(--border-card);
+  box-shadow: var(--shadow-card);
+}
+
+#portfolio .portfolio-grid .portfolio-card:hover .portfolio-item {
+  box-shadow: var(--shadow-card-hover);
+}
+
+#portfolio .portfolio-grid .portfolio-caption {
+  background: var(--bg-card);
+}
+
+#portfolio .portfolio-grid .portfolio-caption-heading {
+  color: var(--text-heading);
+}
+
+/* ── Modals ─────────────────────────────────────────────────────── */
+.portfolio-modal .modal-content,
+.timeline-modal .modal-content,
+.modal-content {
+  background-color: var(--bg-modal);
+  color: var(--text-modal);
+}
+
+.portfolio-modal .modal-content p,
+.timeline-modal .modal-content p,
+.timeline-modal .modal-content li,
+.portfolio-modal .modal-content li {
+  color: var(--text-secondary);
+}
+
+.portfolio-modal .modal-content h2,
+.timeline-modal .modal-content h2 {
+  color: var(--text-heading);
+}
+
+.portfolio-modal .modal-content p.item-intro,
+.timeline-modal .modal-content p.item-intro {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .close-modal img {
+  filter: invert(1);
+}
+
+/* ── Theme toggle (navbar) ──────────────────────────────────────── */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  margin-left: 0.5rem;
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus {
+  color: var(--gold-bright, #e6b422);
+  background: rgba(212, 160, 23, 0.14);
+  border-color: rgba(212, 160, 23, 0.35);
+  outline: none;
+}
+
+.theme-toggle:active {
+  transform: scale(0.94);
+}
+
+.theme-toggle-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.nav-item-theme {
+  display: flex;
+  align-items: center;
+}
+
+@media (min-width: 992px) {
+  .nav-item-theme {
+    margin-left: 0.25rem;
+  }
+}
+
+@media (max-width: 991px) {
+  .nav-item-theme {
+    margin-top: 0.75rem;
+    padding-left: 1rem;
+  }
+
+  .theme-toggle {
+    margin-left: 0;
+  }
+}
