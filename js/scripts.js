@@ -207,3 +207,91 @@
     }
   }, true); // Use capture phase
 })();
+
+// Horizontal timeline: scroll buttons + clickable cards
+(function () {
+  "use strict";
+
+  var scrollEl = document.getElementById("timelineScroll");
+  if (!scrollEl) return;
+
+  var btnLeft = document.querySelector(".timeline-scroll-btn-left");
+  var btnRight = document.querySelector(".timeline-scroll-btn-right");
+  var scrollAmount = 400;
+
+  function updateButtons() {
+    if (!btnLeft || !btnRight) return;
+    var atStart = scrollEl.scrollLeft <= 10;
+    var atEnd =
+      scrollEl.scrollLeft + scrollEl.clientWidth >= scrollEl.scrollWidth - 10;
+    btnLeft.style.opacity = atStart ? "0.3" : "";
+    btnRight.style.opacity = atEnd ? "0.3" : "";
+    btnLeft.disabled = atStart;
+    btnRight.disabled = atEnd;
+  }
+
+  if (btnLeft) {
+    btnLeft.addEventListener("click", function () {
+      scrollEl.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+    });
+  }
+
+  if (btnRight) {
+    btnRight.addEventListener("click", function () {
+      scrollEl.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    });
+  }
+
+  scrollEl.addEventListener("scroll", updateButtons);
+  updateButtons();
+
+  document
+    .querySelectorAll("#timeline .timeline-horizontal > li")
+    .forEach(function (li) {
+      var link = li.querySelector('a[data-toggle="modal"]');
+      var panel = li.querySelector(".timeline-panel");
+      if (link && panel) {
+        panel.addEventListener("click", function () {
+          link.click();
+        });
+      }
+    });
+})();
+
+// Horizontal portfolio: scroll buttons
+(function () {
+  "use strict";
+
+  var scrollEl = document.getElementById("portfolioScroll");
+  if (!scrollEl) return;
+
+  var btnLeft = document.querySelector(".portfolio-scroll-btn-left");
+  var btnRight = document.querySelector(".portfolio-scroll-btn-right");
+  var scrollAmount = 380;
+
+  function updateButtons() {
+    if (!btnLeft || !btnRight) return;
+    var atStart = scrollEl.scrollLeft <= 10;
+    var atEnd =
+      scrollEl.scrollLeft + scrollEl.clientWidth >= scrollEl.scrollWidth - 10;
+    btnLeft.style.opacity = atStart ? "0.3" : "";
+    btnRight.style.opacity = atEnd ? "0.3" : "";
+    btnLeft.disabled = atStart;
+    btnRight.disabled = atEnd;
+  }
+
+  if (btnLeft) {
+    btnLeft.addEventListener("click", function () {
+      scrollEl.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+    });
+  }
+
+  if (btnRight) {
+    btnRight.addEventListener("click", function () {
+      scrollEl.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    });
+  }
+
+  scrollEl.addEventListener("scroll", updateButtons);
+  updateButtons();
+})();
