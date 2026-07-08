@@ -10617,50 +10617,10 @@ header.masthead {
   position: relative;
   z-index: 0;
 }
-header.masthead .masthead-subheading {
-  font-size: 1.5rem;
-  font-style: italic;
-  line-height: 1.5rem;
-  margin-bottom: 25px;
-  /* color: #fed136; */
-  font-family: "Droid Serif", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji",
-    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  /* z-index: 2 */
-}
-header.masthead .masthead-heading {
-  font-size: 3.25rem;
-  font-weight: 700;
-  line-height: 3.25rem;
-  margin-bottom: 2rem;
-  /* margin-bottom: 0rem; */
-  color: #fed136;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji",
-    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  /* behavior: url(../js/particles.js) */
-  /* z-index: 2 */
-}
-
 @media (min-width: 768px) {
   header.masthead {
-    padding-top: 17rem;
-    padding-bottom: 12.5rem;
-    /* padding-top: 0rem;
-    padding-bottom: 0rem; */
-  }
-  header.masthead .masthead-subheading {
-    font-size: 2.25rem;
-    font-style: italic;
-    line-height: 2.25rem;
-    margin-bottom: 2rem;
-  }
-  header.masthead .masthead-heading {
-    font-size: 4.5rem;
-    font-weight: 700;
-    line-height: 4.5rem;
-    /* margin-bottom: 4rem; */
-    margin-bottom: 1rem;
+    padding-top: var(--nav-height, 5.5rem);
+    padding-bottom: 0;
   }
 }
 #portfolio {
@@ -12117,10 +12077,20 @@ header.masthead.is-particles-interactive .particles-toggle {
   --gold-bright: #e6b422;
   --ink: #1f2328;
   --muted: #6b7280;
+  --nav-height: 4.25rem;
+  --font-sans: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (min-width: 992px) {
+  :root {
+    --nav-height: 5.5rem;
+  }
 }
 
 /* ── Base typography rhythm ─────────────────────────────────────── */
 body {
+  font-family: var(--font-sans);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -12166,6 +12136,7 @@ p {
 .page-section h2.section-heading,
 .page-section-short h2.section-heading {
   position: relative;
+  font-family: var(--font-sans);
   font-size: 2.5rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -12189,7 +12160,10 @@ p {
 }
 
 .page-section h3.section-subheading {
+  font-family: var(--font-sans);
   font-size: 1.05rem;
+  font-weight: 400;
+  font-style: normal;
   color: var(--muted);
   margin-bottom: 0.75rem;
 }
@@ -12242,11 +12216,12 @@ header.masthead {
   background: linear-gradient(180deg, #16181c 0%, #0b0c0e 100%);
   min-height: 300px;
   height: 37vh;
-  padding-top: 4rem;
+  padding-top: var(--nav-height, 4.5rem);
   padding-bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
   position: relative;
   overflow: hidden;
 }
@@ -12255,7 +12230,7 @@ header.masthead {
   header.masthead {
     min-height: 340px;
     height: 41vh;
-    padding-top: 4.5rem;
+    padding-top: var(--nav-height, 5.5rem);
     padding-bottom: 0;
   }
 }
@@ -12263,36 +12238,39 @@ header.masthead {
 .masthead-content {
   position: relative;
   z-index: 2;
+  width: 100%;
+  text-align: center;
 }
 
 header.masthead .masthead-heading {
+  font-family: var(--font-sans);
   font-size: 2.5rem;
+  font-weight: 700;
   line-height: 1.1;
-}
-
-header.masthead .masthead-subheading {
-  font-size: 1.15rem;
-}
-
-@media (min-width: 768px) {
-  header.masthead .masthead-heading {
-    font-size: 3.5rem;
-    line-height: 1.1;
-  }
-  header.masthead .masthead-subheading {
-    font-size: 1.6rem;
-  }
-}
-header.masthead .masthead-heading {
+  font-style: normal;
   color: #fff;
   letter-spacing: 0.02em;
   margin-bottom: 0.75rem;
   text-shadow: 0 2px 24px rgba(0, 0, 0, 0.4);
 }
+
 header.masthead .masthead-subheading {
-  color: var(--gold-bright);
+  font-family: var(--font-sans);
+  font-size: 1.15rem;
   font-weight: 400;
-  margin-bottom: 1.25rem;
+  font-style: normal;
+  line-height: 1.4;
+  color: var(--gold-bright);
+  margin-bottom: 0;
+}
+
+@media (min-width: 768px) {
+  header.masthead .masthead-heading {
+    font-size: 3.5rem;
+  }
+  header.masthead .masthead-subheading {
+    font-size: 1.6rem;
+  }
 }
 .masthead-location {
   font-size: 1rem;
@@ -12396,7 +12374,7 @@ section#contact .section-heading {
   box-shadow: none;
 }
 .contact-name {
-  font-family: "Montserrat", sans-serif;
+  font-family: var(--font-sans);
   font-weight: 700;
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
@@ -12541,4 +12519,52 @@ section#contact .section-heading {
   #portfolio .portfolio-grid .portfolio-item img {
     height: 12rem;
   }
+}
+
+/* ── Site-wide Montserrat typography ────────────────────────────── */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li,
+label,
+input,
+textarea,
+select,
+button,
+.btn,
+.navbar,
+.modal-content,
+.footer,
+.about-text,
+.timeline-scroll-hint,
+.particles-toggle,
+.particles-hint,
+#portfolio .portfolio-caption-heading,
+#portfolio .portfolio-caption-subheading,
+#portfolio .portfolio-grid .portfolio-caption-heading,
+#portfolio .portfolio-grid .portfolio-caption-subheading,
+.portfolio-modal .modal-content h2,
+.portfolio-modal .modal-content p,
+.portfolio-modal .modal-content p.item-intro,
+.timeline-modal .modal-content h2,
+.timeline-modal .modal-content p,
+.timeline-modal .modal-content p.item-intro,
+#timeline .timeline-heading h4,
+#timeline .timeline-heading h4.subheading,
+#timeline .timeline-body p {
+  font-family: var(--font-sans);
+}
+
+.page-section h3.section-subheading,
+.page-section-short h3.section-subheading,
+.portfolio-modal .modal-content p.item-intro,
+.timeline-modal .modal-content p.item-intro,
+#portfolio .portfolio-item .portfolio-caption .portfolio-caption-subheading,
+#portfolio .portfolio-grid .portfolio-caption-subheading {
+  font-style: normal;
+  font-weight: 400;
 }
