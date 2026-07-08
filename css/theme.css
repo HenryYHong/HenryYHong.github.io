@@ -353,3 +353,32 @@ body {
     margin-left: 0;
   }
 }
+
+/* ── Motion toggle (masthead particles) ───────────────────────────── */
+.particles-toggle {
+  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+  line-height: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.particles-toggle:hover,
+.particles-toggle:focus {
+  outline: none;
+}
+
+.particles-toggle:active {
+  transform: scale(0.97);
+}
+
+.particles-toggle.is-active {
+  color: var(--gold-bright, #e6b422);
+  border-color: rgba(212, 160, 23, 0.45);
+  background: rgba(212, 160, 23, 0.14);
+  box-shadow: 0 2px 16px rgba(212, 160, 23, 0.2);
+}
