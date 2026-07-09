@@ -520,6 +520,15 @@
     if (callback) callback();
   };
 
+  KoiPond.prototype.paintInitialFrame = function () {
+    var now =
+      window.performance && window.performance.now
+        ? window.performance.now()
+        : Date.now();
+    this.time = now;
+    this.drawWater();
+  };
+
   function lerpAngle(a, b, t) {
     return a + angleDelta(a, b) * t;
   }
@@ -1274,7 +1283,11 @@
     this.running = true;
     this._lastTs = 0;
     if (!this.fishes.length) this.seedFish();
-    this.rafId = requestAnimationFrame(this._boundFrame);
+    this.frame(
+      window.performance && window.performance.now
+        ? window.performance.now()
+        : Date.now()
+    );
   };
 
   KoiPond.prototype.stop = function () {

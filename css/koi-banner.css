@@ -2,6 +2,15 @@
    Banner modes — particles (default) | koi pond
    ══════════════════════════════════════════════════════════════════ */
 
+/* ── Koi mode: banner-only overrides ─────────────────────────────── */
+[data-banner="koi"] {
+  --koi-glow: rgba(61, 155, 98, 0.22);
+}
+
+[data-banner="koi"][data-theme="dark"] {
+  --koi-glow: rgba(74, 173, 114, 0.24);
+}
+
 [data-banner="koi"] #particles-js,
 [data-banner="koi"] .particles-toggle {
   display: none !important;
@@ -30,7 +39,7 @@
 
 [data-banner="koi"] header.masthead {
   position: relative;
-  background: linear-gradient(180deg, #2b9093 0%, #17606f 52%, #0b3544 100%);
+  background: linear-gradient(180deg, #3aa2a0 0%, #207982 36%, #155866 72%, #0b3544 100%);
   cursor: pointer;
 }
 
@@ -42,8 +51,45 @@
 }
 
 [data-banner="koi"] header.masthead .masthead-subheading {
-  color: #ffe8c8;
+  color: #d4f5e0;
   text-shadow: 0 1px 16px rgba(0, 0, 0, 0.45);
+}
+
+[data-banner="koi"] #mainNav {
+  background-color: #123222;
+}
+
+[data-banner="koi"] #mainNav .navbar-brand,
+[data-banner="koi"] #mainNav .navbar-brand:focus {
+  color: var(--gold-bright);
+}
+
+[data-banner="koi"] #mainNav.navbar-shrink {
+  background-color: #123222;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.32);
+}
+
+[data-banner="koi"] #mainNav .navbar-nav .nav-item .nav-link.active,
+[data-banner="koi"] #mainNav .navbar-nav .nav-item .nav-link:hover,
+[data-banner="koi"] #mainNav .navbar-nav .nav-item .nav-link:focus {
+  color: #9ee0b4;
+}
+
+@media (min-width: 992px) {
+  [data-banner="koi"] #mainNav .navbar-nav .nav-item .nav-link::after {
+    background: #9ee0b4;
+  }
+}
+
+[data-banner="koi"] .theme-toggle:hover,
+[data-banner="koi"] .theme-toggle:focus {
+  color: var(--gold-bright);
+  background: rgba(142, 212, 168, 0.14);
+  border-color: rgba(142, 212, 168, 0.35);
+}
+
+[data-banner="koi"] #mainNav .navbar-toggler {
+  background-color: var(--gold);
 }
 
 .koi-feed-note {
@@ -53,7 +99,7 @@
   bottom: 1rem;
   z-index: 3;
   pointer-events: none;
-  color: var(--gold-bright, #e6b422);
+  color: var(--gold-bright, #6bc48a);
   font-size: 0.82rem;
   letter-spacing: 0.02em;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
@@ -86,9 +132,9 @@
 
 .banner-toggle:hover,
 .banner-toggle:focus {
-  color: var(--gold-bright, #e6b422);
-  background: rgba(212, 160, 23, 0.14);
-  border-color: rgba(212, 160, 23, 0.35);
+  color: var(--gold-bright, #6bc48a);
+  background: rgba(61, 143, 90, 0.14);
+  border-color: rgba(61, 143, 90, 0.35);
   outline: none;
 }
 
@@ -97,16 +143,16 @@
 }
 
 [data-banner="koi"] .banner-toggle {
-  color: #a8e6f0;
-  border-color: rgba(168, 230, 240, 0.35);
-  background: rgba(168, 230, 240, 0.1);
+  color: #9ee0b4;
+  border-color: rgba(142, 212, 168, 0.35);
+  background: rgba(142, 212, 168, 0.1);
 }
 
 [data-banner="koi"] .banner-toggle:hover,
 [data-banner="koi"] .banner-toggle:focus {
-  color: #d4f5fc;
-  background: rgba(168, 230, 240, 0.18);
-  border-color: rgba(168, 230, 240, 0.5);
+  color: #c8f5d4;
+  background: rgba(142, 212, 168, 0.18);
+  border-color: rgba(142, 212, 168, 0.5);
 }
 
 .banner-toggle-icon {
@@ -134,6 +180,108 @@
   .banner-toggle {
     margin-left: 0;
   }
+}
+
+/* ── Koi mode: hardcoded accent overrides in styles.css ─────────── */
+[data-banner="koi"] .timeline-scroll,
+[data-banner="koi"] .portfolio-scroll {
+  scrollbar-color: var(--gold) var(--scrollbar-track);
+}
+
+[data-banner="koi"] .timeline-scroll::-webkit-scrollbar-thumb,
+[data-banner="koi"] .portfolio-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, var(--gold), var(--gold-dark));
+}
+
+[data-banner="koi"] .timeline-scroll-track::before {
+  background: linear-gradient(
+    90deg,
+    rgba(61, 155, 98, 0.15),
+    var(--gold) 10%,
+    var(--gold) 90%,
+    rgba(61, 155, 98, 0.15)
+  );
+}
+
+[data-banner="koi"] #timeline .timeline-item-above .timeline-panel::after {
+  background: linear-gradient(to bottom, var(--gold), rgba(61, 155, 98, 0.3));
+}
+
+[data-banner="koi"] #timeline .timeline-item-below .timeline-panel::after {
+  background: linear-gradient(to top, var(--gold), rgba(61, 155, 98, 0.3));
+}
+
+[data-banner="koi"] #timeline .timeline-horizontal .timeline-panel {
+  border-color: var(--border-card);
+}
+
+[data-banner="koi"] #timeline .timeline-horizontal > li:hover .timeline-panel {
+  box-shadow: var(--shadow-card-hover);
+}
+
+[data-banner="koi"] #timeline .timeline-horizontal .timeline-heading h4 {
+  color: var(--gold-dark);
+}
+
+[data-banner="koi"][data-theme="dark"] #timeline .timeline-horizontal .timeline-heading h4 {
+  color: var(--gold-bright, #6bc48a);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-banner="koi"]:not([data-theme]) #timeline .timeline-horizontal .timeline-heading h4 {
+    color: var(--gold-bright, #6bc48a);
+  }
+}
+
+[data-banner="koi"] #timeline .timeline-horizontal .timeline-image {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 8px var(--koi-glow), 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+[data-banner="koi"] #timeline .timeline-horizontal > li:hover .timeline-image {
+  box-shadow: 0 0 0 8px rgba(61, 155, 98, 0.3), 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+[data-banner="koi"] .timeline-scroll-btn,
+[data-banner="koi"] .portfolio-scroll-btn {
+  border-color: var(--gold);
+  color: var(--gold-dark);
+}
+
+[data-banner="koi"] .timeline-scroll-btn:hover,
+[data-banner="koi"] .portfolio-scroll-btn:hover {
+  background: var(--gold);
+  color: #fff;
+}
+
+[data-banner="koi"] #portfolio .portfolio-link .portfolio-item .portfolio-hover,
+[data-banner="koi"] #portfolio .portfolio-grid .portfolio-item .portfolio-hover {
+  background: rgba(61, 155, 98, 0.92);
+}
+
+[data-banner="koi"] #portfolio .portfolio-grid .portfolio-card:hover .portfolio-item {
+  box-shadow: var(--shadow-card-hover);
+}
+
+[data-banner="koi"] #portfolio .portfolio-grid .portfolio-item,
+[data-banner="koi"] #portfolio .portfolio-scroll-track .portfolio-item {
+  border-color: var(--border-card);
+}
+
+[data-banner="koi"] #portfolio .portfolio-scroll-track .portfolio-card:hover .portfolio-item {
+  box-shadow: var(--shadow-card-hover);
+}
+
+[data-banner="koi"] .contact-socials .btn-social {
+  box-shadow: 0 4px 14px rgba(61, 155, 98, 0.28);
+}
+
+[data-banner="koi"] .contact-socials .btn-social:hover {
+  box-shadow: 0 8px 22px rgba(61, 155, 98, 0.4);
+}
+
+[data-banner="koi"] .footer {
+  background-color: #123222;
 }
 
 @media (prefers-reduced-motion: reduce) {

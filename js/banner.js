@@ -178,6 +178,7 @@
     function boot() {
       koiInstance = new window.KoiPond(canvas);
       koiInstance.init(function () {
+        koiInstance.paintInitialFrame();
         koiInstance.start();
       });
     }

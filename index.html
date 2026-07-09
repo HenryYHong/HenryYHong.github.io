@@ -29,6 +29,13 @@
         } catch (e2) {
           document.documentElement.setAttribute("data-banner", "particles");
         }
+        if (document.documentElement.getAttribute("data-banner") === "koi") {
+          var foil = document.createElement("style");
+          foil.id = "koi-banner-foil";
+          foil.textContent =
+            'html[data-banner="koi"] header.masthead{background:linear-gradient(180deg,#3aa2a0 0%,#207982 36%,#155866 72%,#0b3544 100%)!important}';
+          document.head.appendChild(foil);
+        }
       })();
     </script>
     <meta
@@ -71,14 +78,14 @@
     ></script>
     <!-- Google fonts-->
     <link
-      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css?family=Montserrat:400,700"
       rel="stylesheet"
       type="text/css"
     />
     <!-- Core theme CSS (includes Bootstrap)-->
     <link href="css/styles.css" rel="stylesheet" />
     <link href="css/theme.css" rel="stylesheet" />
-    <link href="css/koi-banner.css?v=water2" rel="stylesheet" />
+    <link href="css/koi-banner.css?v=green2" rel="stylesheet" />
   </head>
   <body id="home-page">
     <!-- Navigation-->
@@ -165,8 +172,7 @@
     <!-- Masthead-->
     <header class="masthead">
       <div class="container masthead-content">
-        <div class="masthead-heading">Henry Hong</div>
-        <div class="masthead-subheading">Engineer and Educator</div>
+        <div class="masthead-heading">Hi, I'm Henry</div>
       </div>
       <div id="particles-js"></div>
       <canvas id="koi-pond" aria-hidden="true"></canvas>
@@ -223,7 +229,7 @@
           <!-- Right: Text -->
           <div class="about-text">
             <p>
-              Hello, I'm Henry. I'm a student at UC Berkeley pursuing
+              I'm a senior at UC Berkeley pursuing
               a double major in
               <a href="https://eecs.berkeley.edu/" target="_blank"
                 >computer science</a
@@ -231,10 +237,8 @@
               and
               <a href="https://cdss.berkeley.edu/dsus" target="_blank"
                 >data science</a>. At Berkeley, I'm the President of the
-              <a href="https://www.dssberkeley.org/" target="_blank">Data Science Society</a> and serve on the
-              <a href="https://ds100.org/" target="_blank">Data 100</a>
-              course staff (I'm also an incoming TA for
-              <a href="https://data102.org/" target="_blank">Data 102</a>). I conduct machine learning research at
+              <a href="https://www.dssberkeley.org/" target="_blank">Data Science Society</a> and am also an incoming TA for
+              <a href="https://data102.org/" target="_blank">Data 102</a>. I conduct machine learning research at
               <a href="https://bair.berkeley.edu/" target="_blank">Berkeley Artificial Intelligence Research (BAIR)</a>, where I co-authored the
               <a href="https://arxiv.org/abs/2512.05933" target="_blank">Speech World Model</a> accepted to ICLR 2026. I've also interned twice as a Software Development Engineer at Amazon. In my free time, I love playing instruments (piano and sax), reading, and exploring museums.
             </p>
@@ -1290,7 +1294,7 @@
                     ASL Gesture Classifier
                   </div>
                   <div class="portfolio-caption-subheading text-muted">
-                    Computer Vision Project
+                    OpenCV, MediaPipe, Random Forest
                   </div>
                 </div>
               </div>
@@ -1319,10 +1323,10 @@
                 />
                 <div class="portfolio-caption">
                   <div class="portfolio-caption-heading">
-                    Music Genre Classifier
+                    Spotify Audio Classifier
                   </div>
                   <div class="portfolio-caption-subheading text-muted">
-                    Machine Learning
+                    Music Genre Classification
                   </div>
                 </div>
               </div>
@@ -2447,8 +2451,8 @@
     <!-- Core theme JS-->
     <script src="js/scripts.js"></script>
     <script src="js/theme.js"></script>
-    <script src="js/koi-pond.js?v=edge7"></script>
-    <script src="js/banner.js?v=particles1"></script>
+    <script src="js/koi-pond.js?v=edge8"></script>
+    <script src="js/banner.js?v=particles2"></script>
     <!-- <script src="js/scrolling.js"></script> -->
 
     <script>

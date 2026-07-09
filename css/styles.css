@@ -6736,7 +6736,7 @@ button.bg-dark:focus {
   border-radius: 50% !important;
 }
 #timeline {
-  background-color: #eef1f5;
+  background-color: var(--bg-timeline);
 }
 
 .timeline a[href*="#timelineModal"] .timeline-image .rounded-circle:hover {
@@ -10645,7 +10645,7 @@ header.masthead {
   position: absolute;
   width: 100%;
   height: 100%;
-  background: rgba(254, 209, 54, 0.9);
+  background: rgba(107, 196, 138, 0.9);
   align-items: center;
   justify-content: center;
   opacity: 0;
@@ -11199,9 +11199,9 @@ header.masthead.is-particles-interactive .particles-toggle {
 }
 
 .particles-toggle.is-active:hover {
-  color: var(--gold-bright, #e6b422);
-  background: rgba(212, 160, 23, 0.18);
-  border-color: rgba(212, 160, 23, 0.55);
+  color: var(--gold-bright, #6bc48a);
+  background: rgba(61, 143, 90, 0.18);
+  border-color: rgba(61, 143, 90, 0.55);
 }
 
 @media (max-width: 575px) {
@@ -11306,15 +11306,15 @@ header.masthead.is-particles-interactive .particles-toggle {
 
 /* About section: black heading; links bold + dark yellow */
 #about .section-heading {
-  color: #000;
+  color: var(--text-heading);
 }
 
 #about a {
-  color: #d1a600;
+  color: #3d8f5a;
 }
 
 #about a:hover {
-  color: #b88f00;
+  color: #2d6b44;
 }
 
 /* Left Side: Text */
@@ -11332,7 +11332,7 @@ header.masthead.is-particles-interactive .particles-toggle {
 
 .about-text p {
   font-size: 1.2em;
-  color: #6c757d; /* Muted text color */
+  color: var(--text-secondary);
 }
 
 /* Right Side: Image */
@@ -11523,12 +11523,12 @@ header.masthead.is-particles-interactive .particles-toggle {
 
 .timeline-scroll-outer::before {
   left: 0;
-  background: linear-gradient(to right, #eef1f5 30%, transparent);
+  background: linear-gradient(to right, var(--timeline-fade) 30%, transparent);
 }
 
 .timeline-scroll-outer::after {
   right: 0;
-  background: linear-gradient(to left, #eef1f5 30%, transparent);
+  background: linear-gradient(to left, var(--timeline-fade) 30%, transparent);
 }
 
 .timeline-scroll {
@@ -11538,7 +11538,7 @@ header.masthead.is-particles-interactive .particles-toggle {
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  scrollbar-color: #d4a017 #e9ecef;
+  scrollbar-color: #3d8f5a #e9ecef;
   padding: 0.5rem 0 1rem;
 }
 
@@ -11553,7 +11553,7 @@ header.masthead.is-particles-interactive .particles-toggle {
 }
 
 .timeline-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, #d4a017, #b8860b);
+  background: linear-gradient(90deg, #3d8f5a, #2d6b44);
   border-radius: 3px;
 }
 
@@ -11574,10 +11574,10 @@ header.masthead.is-particles-interactive .particles-toggle {
   transform: translateY(-50%);
   background: linear-gradient(
     90deg,
-    rgba(212, 160, 23, 0.15),
-    #d4a017 10%,
-    #d4a017 90%,
-    rgba(212, 160, 23, 0.15)
+    rgba(61, 143, 90, 0.15),
+    #3d8f5a 10%,
+    #3d8f5a 90%,
+    rgba(61, 143, 90, 0.15)
   );
   border-radius: 2px;
   z-index: 0;
@@ -11656,7 +11656,7 @@ header.masthead.is-particles-interactive .particles-toggle {
   left: 50%;
   width: 2px;
   height: 1.25rem;
-  background: linear-gradient(to bottom, #d4a017, rgba(212, 160, 23, 0.3));
+  background: linear-gradient(to bottom, #3d8f5a, rgba(61, 143, 90, 0.3));
   transform: translateX(-50%);
 }
 
@@ -11667,7 +11667,7 @@ header.masthead.is-particles-interactive .particles-toggle {
 
 #timeline .timeline-item-below .timeline-panel::after {
   top: -1.25rem;
-  background: linear-gradient(to top, #d4a017, rgba(212, 160, 23, 0.3));
+  background: linear-gradient(to top, #3d8f5a, rgba(61, 143, 90, 0.3));
 }
 
 /* Timeline cards */
@@ -11681,7 +11681,7 @@ header.masthead.is-particles-interactive .particles-toggle {
   background: #fff;
   border-radius: 14px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(212, 160, 23, 0.25);
+  border: 1px solid rgba(61, 143, 90, 0.25);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
 }
@@ -11692,7 +11692,7 @@ header.masthead.is-particles-interactive .particles-toggle {
 
 #timeline .timeline-horizontal > li:hover .timeline-panel {
   transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(212, 160, 23, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 30px rgba(61, 143, 90, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 #timeline .timeline-horizontal .timeline-heading h4 {
@@ -11700,14 +11700,14 @@ header.masthead.is-particles-interactive .particles-toggle {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #b8860b;
+  color: var(--gold-dark);
   margin-bottom: 0.35rem;
 }
 
 #timeline .timeline-horizontal .timeline-heading h4.subheading {
   font-size: 1.2rem;
   font-weight: 600;
-  color: #212529;
+  color: var(--text-timeline-sub);
   text-transform: none;
   letter-spacing: 0;
   line-height: 1.3;
@@ -11717,6 +11717,7 @@ header.masthead.is-particles-interactive .particles-toggle {
   font-size: 0.95rem;
   line-height: 1.6;
   margin-top: 0.65rem;
+  color: var(--text-secondary);
 }
 
 /* Timeline node (circular image) */
@@ -11733,17 +11734,17 @@ header.masthead.is-particles-interactive .particles-toggle {
   width: 150px;
   height: 150px;
   margin: 0;
-  border: 6px solid #d4a017;
+  border: 6px solid #3d8f5a;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 0 0 8px rgba(212, 160, 23, 0.15), 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 0 8px rgba(61, 143, 90, 0.15), 0 4px 16px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 #timeline .timeline-horizontal > li:hover .timeline-image {
   transform: scale(1.08);
-  box-shadow: 0 0 0 8px rgba(212, 160, 23, 0.2), 0 6px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 0 8px rgba(61, 143, 90, 0.2), 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 
 #timeline .timeline-horizontal .timeline-image img {
@@ -11761,9 +11762,9 @@ header.masthead.is-particles-interactive .particles-toggle {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 2px solid #d4a017;
+  border: 2px solid #3d8f5a;
   background: #fff;
-  color: #b8860b;
+  color: #2d6b44;
   font-size: 1rem;
   display: flex;
   align-items: center;
@@ -11788,7 +11789,7 @@ header.masthead.is-particles-interactive .particles-toggle {
 }
 
 .timeline-scroll-btn:hover {
-  background: #d4a017;
+  background: #3d8f5a;
   color: #fff;
   transform: translateY(-50%) scale(1.05);
 }
@@ -11865,7 +11866,6 @@ header.masthead.is-particles-interactive .particles-toggle {
 #portfolio.bg-light {
   position: relative;
   z-index: 2;
-  background-color: #ffffff !important;
 }
 
 #portfolio {
@@ -11899,12 +11899,12 @@ header.masthead.is-particles-interactive .particles-toggle {
 
 .portfolio-scroll-outer::before {
   left: 0;
-  background: linear-gradient(to right, #ffffff 30%, transparent);
+  background: linear-gradient(to right, var(--portfolio-fade) 30%, transparent);
 }
 
 .portfolio-scroll-outer::after {
   right: 0;
-  background: linear-gradient(to left, #ffffff 30%, transparent);
+  background: linear-gradient(to left, var(--portfolio-fade) 30%, transparent);
 }
 
 .portfolio-scroll {
@@ -11914,7 +11914,7 @@ header.masthead.is-particles-interactive .particles-toggle {
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  scrollbar-color: #d4a017 #e9ecef;
+  scrollbar-color: #3d8f5a #e9ecef;
   padding: 0.5rem 0 1rem;
 }
 
@@ -11929,7 +11929,7 @@ header.masthead.is-particles-interactive .particles-toggle {
 }
 
 .portfolio-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, #d4a017, #b8860b);
+  background: linear-gradient(90deg, #3d8f5a, #2d6b44);
   border-radius: 3px;
 }
 
@@ -11955,13 +11955,13 @@ header.masthead.is-particles-interactive .particles-toggle {
   overflow: hidden;
   background: #fff;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(212, 160, 23, 0.25);
+  border: 1px solid rgba(61, 143, 90, 0.25);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 #portfolio .portfolio-scroll-track .portfolio-card:hover .portfolio-item {
   transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(212, 160, 23, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 30px rgba(61, 143, 90, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 #portfolio .portfolio-scroll-track .portfolio-item .portfolio-link {
@@ -11996,9 +11996,9 @@ header.masthead.is-particles-interactive .particles-toggle {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 2px solid #d4a017;
+  border: 2px solid #3d8f5a;
   background: #fff;
-  color: #b8860b;
+  color: #2d6b44;
   font-size: 1rem;
   display: flex;
   align-items: center;
@@ -12017,7 +12017,7 @@ header.masthead.is-particles-interactive .particles-toggle {
 }
 
 .portfolio-scroll-btn:hover {
-  background: #d4a017;
+  background: #3d8f5a;
   color: #fff;
   transform: translateY(-50%) scale(1.05);
 }
@@ -12072,9 +12072,9 @@ header.masthead.is-particles-interactive .particles-toggle {
    ══════════════════════════════════════════════════════════════════ */
 
 :root {
-  --gold: #d4a017;
-  --gold-dark: #b8860b;
-  --gold-bright: #e6b422;
+  --gold: #3d9b62;
+  --gold-dark: #1e5c3a;
+  --gold-bright: #8ed4a8;
   --ink: #1f2328;
   --muted: #6b7280;
   --nav-height: 4.25rem;
@@ -12250,7 +12250,7 @@ header.masthead .masthead-heading {
   font-style: normal;
   color: #fff;
   letter-spacing: 0.02em;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
   text-shadow: 0 2px 24px rgba(0, 0, 0, 0.4);
 }
 
@@ -12297,7 +12297,7 @@ header.masthead .masthead-subheading {
   color: #fff;
   background-color: var(--gold-dark);
   border-color: var(--gold-dark);
-  box-shadow: 0 6px 18px rgba(184, 134, 11, 0.3);
+  box-shadow: 0 6px 18px rgba(45, 107, 68, 0.3);
 }
 .btn-primary:not(:disabled):not(.disabled):active,
 .btn-primary:not(:disabled):not(.disabled).active,
@@ -12314,14 +12314,14 @@ header.masthead .masthead-subheading {
 }
 .about-text p {
   font-size: 1.15rem;
-  line-height: 1.85;
-  color: #3f444b;
+  line-height: 1.75;
+  color: var(--text-secondary);
 }
 #about a {
   color: var(--gold-dark);
   font-weight: 600;
   text-decoration: none;
-  border-bottom: 1px solid rgba(184, 134, 11, 0.3);
+  border-bottom: 1px solid rgba(45, 107, 68, 0.3);
   transition: color 0.2s ease, border-color 0.2s ease;
 }
 #about a:hover {
@@ -12395,12 +12395,12 @@ section#contact .section-heading {
   color: #fff;
   background: linear-gradient(135deg, var(--gold), var(--gold-dark));
   border: none;
-  box-shadow: 0 4px 14px rgba(184, 134, 11, 0.28);
+  box-shadow: 0 4px 14px rgba(45, 107, 68, 0.28);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .contact-socials .btn-social:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 22px rgba(184, 134, 11, 0.4);
+  box-shadow: 0 8px 22px rgba(45, 107, 68, 0.4);
   color: #fff;
 }
 
@@ -12416,7 +12416,7 @@ section#contact .section-heading {
 
 /* ── Portfolio hover overlay accent ─────────────────────────────── */
 #portfolio .portfolio-item .portfolio-link .portfolio-hover {
-  background: rgba(212, 160, 23, 0.92);
+  background: rgba(61, 143, 90, 0.92);
 }
 
 /* ── Static Portfolio Grid (no scroll) ──────────────────────────── */
@@ -12451,13 +12451,13 @@ section#contact .section-heading {
   overflow: hidden;
   background: #fff;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(212, 160, 23, 0.25);
+  border: 1px solid rgba(61, 143, 90, 0.25);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 #portfolio .portfolio-grid .portfolio-card:hover .portfolio-item {
   transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(212, 160, 23, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 30px rgba(61, 143, 90, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 #portfolio .portfolio-grid .portfolio-link:hover .portfolio-hover {
@@ -12468,7 +12468,7 @@ section#contact .section-heading {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(212, 160, 23, 0.92);
+  background: rgba(61, 143, 90, 0.92);
   opacity: 0;
   transition: opacity ease-in-out 0.25s;
   position: absolute;
@@ -12521,7 +12521,7 @@ section#contact .section-heading {
   }
 }
 
-/* ── Site-wide Montserrat typography ────────────────────────────── */
+/* ── Site-wide typography ───────────────────────────────────────── */
 h1,
 h2,
 h3,
