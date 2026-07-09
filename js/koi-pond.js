@@ -35,6 +35,7 @@
     },
     {
       id: "kohaku-deep",
+      colorGroup: "kohaku",
       bodyStops: ["#ddd8cf", "#fffaf0", "#f2eadf", "#cbc1b3"],
       scaleColor: "rgba(120, 112, 102, 0.075)",
       dorsalColor: "rgba(228, 224, 216, 0.7)",
@@ -105,6 +106,10 @@
   ];
 
   var MAX_FISH_PER_PALETTE = 3;
+
+  function getColorGroup(palette) {
+    return palette.colorGroup || palette.id;
+  }
 
   function lerp(a, b, t) {
     return a + (b - a) * t;
@@ -274,12 +279,21 @@
   };
 
   KoiPond.prototype.createKoiPalette = function (paletteCounts) {
+    paletteCounts = paletteCounts || this.paletteCounts || {};
+
     var eligible = KOI_PALETTES.filter(function (palette) {
-      return (paletteCounts[palette.id] || 0) < MAX_FISH_PER_PALETTE;
+      return (paletteCounts[getColorGroup(palette)] || 0) < MAX_FISH_PER_PALETTE;
     });
 
     if (!eligible.length) {
-      eligible = KOI_PALETTES;
+      var minCount = Infinity;
+      KOI_PALETTES.forEach(function (palette) {
+        var used = paletteCounts[getColorGroup(palette)] || 0;
+        if (used < minCount) minCount = used;
+      });
+      eligible = KOI_PALETTES.filter(function (palette) {
+        return (paletteCounts[getColorGroup(palette)] || 0) === minCount;
+      });
     }
 
     return pick(eligible);
@@ -391,11 +405,12 @@
     this.fishes = [];
     var count = Math.max(4, Math.min(5, Math.floor(this.w / 220)));
     var inset = 90;
-    var paletteCounts = {};
+    this.paletteCounts = {};
 
     for (var i = 0; i < count; i++) {
-      var palette = this.createKoiPalette(paletteCounts);
-      paletteCounts[palette.id] = (paletteCounts[palette.id] || 0) + 1;
+      var palette = this.createKoiPalette(this.paletteCounts);
+      var group = getColorGroup(palette);
+      this.paletteCounts[group] = (this.paletteCounts[group] || 0) + 1;
 
       this.fishes.push(
         this.createFish({
