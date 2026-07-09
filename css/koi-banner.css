@@ -98,7 +98,7 @@
   bottom: 1rem;
   z-index: 3;
   pointer-events: none;
-  color: var(--gold-bright, #6bc48a);
+  color: #ffffff;
   font-size: 0.82rem;
   letter-spacing: 0.02em;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
