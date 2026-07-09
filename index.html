@@ -20,22 +20,12 @@
         } catch (e) {
           document.documentElement.setAttribute("data-theme", "light");
         }
-        try {
-          var bannerPref = localStorage.getItem("banner-mode");
-          document.documentElement.setAttribute(
-            "data-banner",
-            bannerPref === "koi" ? "koi" : "particles"
-          );
-        } catch (e2) {
-          document.documentElement.setAttribute("data-banner", "particles");
-        }
-        if (document.documentElement.getAttribute("data-banner") === "koi") {
-          var foil = document.createElement("style");
-          foil.id = "koi-banner-foil";
-          foil.textContent =
-            'html[data-banner="koi"] header.masthead{background:linear-gradient(180deg,#3aa2a0 0%,#207982 36%,#155866 72%,#0b3544 100%)!important}';
-          document.head.appendChild(foil);
-        }
+        document.documentElement.setAttribute("data-banner", "koi");
+        var foil = document.createElement("style");
+        foil.id = "koi-banner-foil";
+        foil.textContent =
+          'html[data-banner="koi"] header.masthead{background:linear-gradient(180deg,#3aa2a0 0%,#207982 36%,#155866 72%,#0b3544 100%)!important}';
+        document.head.appendChild(foil);
       })();
     </script>
     <meta
@@ -84,14 +74,14 @@
     />
     <!-- Core theme CSS (includes Bootstrap)-->
     <link href="css/styles.css" rel="stylesheet" />
-    <link href="css/theme.css" rel="stylesheet" />
-    <link href="css/koi-banner.css?v=green2" rel="stylesheet" />
+    <link href="css/theme.css?v=timeline-white2" rel="stylesheet" />
+    <link href="css/koi-banner.css?v=green3" rel="stylesheet" />
   </head>
   <body id="home-page">
     <!-- Navigation-->
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top" id="mainNav">
-      <div class="container">
-        <a class="navbar-brand js-scroll-trigger" href="#home-page">Home</a
+      <div class="container-fluid navbar-inner">
+        <a class="navbar-brand js-scroll-trigger" href="#home-page">Henry Hong</a
         ><button
           class="navbar-toggler navbar-toggler-right"
           type="button"
@@ -103,8 +93,8 @@
         >
           Menu<i class="fas fa-bars ml-1"></i>
         </button>
-        <div class="collapse navbar-collapse" id="navbarResponsive">
-          <ul class="navbar-nav text-uppercase ml-auto">
+        <div class="collapse navbar-collapse justify-content-lg-end" id="navbarResponsive">
+          <ul class="navbar-nav text-uppercase">
             <!-- <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#about">About</a></li> -->
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#about">About</a>
@@ -123,17 +113,6 @@
                         <li class="nav-item"><a class="nav-link js-scroll-trigger" href="#contact">Contact</a></li> -->
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#contact">Contact</a>
-            </li>
-            <li class="nav-item nav-item-banner">
-              <button
-                type="button"
-                class="banner-toggle"
-                id="bannerToggle"
-                aria-label="Banner: Particles (click for koi pond)"
-                title="Banner: Particles — click to switch to koi pond"
-              >
-                <i class="fas fa-tint banner-toggle-icon" aria-hidden="true"></i>
-              </button>
             </li>
             <li class="nav-item nav-item-theme">
               <button
@@ -174,18 +153,8 @@
       <div class="container masthead-content">
         <div class="masthead-heading">Hi, I'm Henry</div>
       </div>
-      <div id="particles-js"></div>
       <canvas id="koi-pond" aria-hidden="true"></canvas>
       <div class="koi-feed-note" aria-hidden="true">Click to Feed :)</div>
-      <button
-        class="particles-toggle"
-        id="particlesToggle"
-        type="button"
-        aria-pressed="true"
-        aria-label="Toggle particle motion"
-      >
-        <i class="fas fa-wind"></i> Motion on
-      </button>
     </header>
 
     <!-- Services-->
@@ -229,15 +198,14 @@
           <!-- Right: Text -->
           <div class="about-text">
             <p>
-              I'm a senior at UC Berkeley pursuing
-              a double major in
+              I'm a senior at UC Berkeley studying
               <a href="https://eecs.berkeley.edu/" target="_blank"
                 >computer science</a
               >
               and
               <a href="https://cdss.berkeley.edu/dsus" target="_blank"
                 >data science</a>. At Berkeley, I'm the President of the
-              <a href="https://www.dssberkeley.org/" target="_blank">Data Science Society</a> and am also an incoming TA for
+              <a href="https://www.dssberkeley.org/" target="_blank">Data Science Society</a> and an incoming TA for
               <a href="https://data102.org/" target="_blank">Data 102</a>. I conduct machine learning research at
               <a href="https://bair.berkeley.edu/" target="_blank">Berkeley Artificial Intelligence Research (BAIR)</a>, where I co-authored the
               <a href="https://arxiv.org/abs/2512.05933" target="_blank">Speech World Model</a> accepted to ICLR 2026. I've also interned twice as a Software Development Engineer at Amazon. In my free time, I love playing instruments (piano and sax), reading, and exploring museums.
@@ -2452,7 +2420,7 @@
     <script src="js/scripts.js"></script>
     <script src="js/theme.js"></script>
     <script src="js/koi-pond.js?v=edge8"></script>
-    <script src="js/banner.js?v=particles2"></script>
+    <script src="js/banner.js?v=koi-only1"></script>
     <!-- <script src="js/scrolling.js"></script> -->
 
     <script>

@@ -11120,10 +11120,6 @@ header.masthead.is-particles-interactive .masthead-content {
   pointer-events: none;
 }
 
-header.masthead.is-particles-interactive .particles-toggle {
-  pointer-events: all;
-}
-
 @media (prefers-reduced-motion: reduce) {
   #particles-js,
   #particles-contact {
@@ -11168,52 +11164,10 @@ header.masthead.is-particles-interactive .particles-toggle {
   font-size: 0.8rem;
 }
 
-.particles-toggle {
-  position: absolute;
-  right: 1rem;
-  bottom: 0.85rem;
-  z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.88);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  padding: 0.35rem 0.75rem;
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.particles-toggle:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.28);
-}
-
-.particles-toggle.is-active:hover {
-  color: var(--gold-bright, #6bc48a);
-  background: rgba(61, 143, 90, 0.18);
-  border-color: rgba(61, 143, 90, 0.55);
-}
-
 @media (max-width: 575px) {
   .particles-hint {
     font-size: 0.65rem;
     right: 0.75rem;
-  }
-
-  .particles-toggle {
-    font-size: 0.65rem;
-    right: 0.75rem;
-    padding: 0.3rem 0.6rem;
   }
 }
 
@@ -11310,11 +11264,11 @@ header.masthead.is-particles-interactive .particles-toggle {
 }
 
 #about a {
-  color: #3d8f5a;
+  color: var(--link, var(--gold-dark));
 }
 
 #about a:hover {
-  color: #2d6b44;
+  color: var(--link-hover, var(--gold));
 }
 
 /* Left Side: Text */
@@ -11695,7 +11649,7 @@ header.masthead.is-particles-interactive .particles-toggle {
   box-shadow: 0 8px 30px rgba(61, 143, 90, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-#timeline .timeline-horizontal .timeline-heading h4 {
+#timeline .timeline-horizontal .timeline-heading h4:not(.subheading) {
   font-size: 0.9rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -12076,7 +12030,7 @@ header.masthead.is-particles-interactive .particles-toggle {
   --gold-dark: #1e5c3a;
   --gold-bright: #8ed4a8;
   --ink: #1f2328;
-  --muted: #6b7280;
+  --muted: #3d454f;
   --nav-height: 4.25rem;
   --font-sans: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -12172,9 +12126,45 @@ p {
 #mainNav {
   background-color: #1a1d21;
 }
+#mainNav > .container,
+#mainNav > .container-fluid,
+#mainNav > .navbar-inner {
+  width: 100%;
+  max-width: 100%;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
 #mainNav .navbar-brand,
 #mainNav .navbar-brand:focus {
   color: var(--gold-bright);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  margin-right: 0;
+  padding-left: 0;
+}
+#mainNav .navbar-collapse {
+  flex-grow: 0;
+  margin-left: auto;
+}
+@media (min-width: 992px) {
+  #mainNav > .container,
+  #mainNav > .container-fluid,
+  #mainNav > .navbar-inner {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+
+  #mainNav .navbar-collapse {
+    justify-content: flex-end;
+  }
+
+  #mainNav .navbar-nav {
+    margin-left: auto;
+  }
 }
 #mainNav .navbar-nav .nav-item .nav-link {
   position: relative;
@@ -12318,15 +12308,15 @@ header.masthead .masthead-subheading {
   color: var(--text-secondary);
 }
 #about a {
-  color: var(--gold-dark);
+  color: var(--link, var(--gold-dark));
   font-weight: 600;
   text-decoration: none;
-  border-bottom: 1px solid rgba(45, 107, 68, 0.3);
+  border-bottom: 1px solid var(--link-underline, rgba(30, 92, 58, 0.35));
   transition: color 0.2s ease, border-color 0.2s ease;
 }
 #about a:hover {
-  color: var(--gold);
-  border-color: var(--gold);
+  color: var(--link-hover, var(--gold));
+  border-color: var(--link-hover, var(--gold));
 }
 .about-image img {
   width: 340px;
@@ -12541,8 +12531,6 @@ button,
 .footer,
 .about-text,
 .timeline-scroll-hint,
-.particles-toggle,
-.particles-hint,
 #portfolio .portfolio-caption-heading,
 #portfolio .portfolio-caption-subheading,
 #portfolio .portfolio-grid .portfolio-caption-heading,
