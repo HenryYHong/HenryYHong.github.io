@@ -106,6 +106,11 @@
   ];
 
   var MAX_FISH_PER_PALETTE = 3;
+  // 60 Hz reference (iPad Air and most desktops); movement is delta-time scaled.
+  var REF_FPS = 60;
+  var SPEED_MIN = 0.25 * REF_FPS;
+  var SPEED_MAX = 0.45 * REF_FPS;
+  var MAX_FRAME_DT = 0.05;
 
   function getColorGroup(palette) {
     return palette.colorGroup || palette.id;
@@ -133,6 +138,8 @@
     this._lastFeedY = -9999;
     this._boundFrame = this.frame.bind(this);
     this._boundFeedClick = this.handleFeedClick.bind(this);
+    this._lastFrameTs = 0;
+    this.dt = 1 / REF_FPS;
   }
 
   KoiPond.prototype.getBodyWidth = function (t) {
@@ -387,7 +394,7 @@
       segments: segments,
       segLen: segLen,
       headWidth: 14.5 * scale,
-      speed: rand(0.25, 0.45),
+      speed: rand(SPEED_MIN, SPEED_MAX),
       scale: scale,
       phase: rand(0, TAU),
       swimPhase: rand(0, TAU),
@@ -558,8 +565,10 @@
   }
 
   KoiPond.prototype.steerFish = function (fish) {
+    var dt = this.dt || 1 / REF_FPS;
+    var frameScale = dt * REF_FPS;
     var maxTurn = Math.PI * (30 / 180);
-    fish.wanderT += fish.wanderSpeed;
+    fish.wanderT += fish.wanderSpeed * frameScale;
     var gentleTurn =
       Math.sin(fish.wanderT) * 0.008 +
       Math.sin(fish.wanderT * 1.5 + 0.8) * 0.004;
@@ -650,11 +659,15 @@
       turnEase = 0.052;
     }
 
-    target = clampTurnFrom(fish.heading, target, maxTurn);
-    fish.heading = lerpAngle(fish.heading, target, turnEase);
-    fish.x += Math.cos(fish.heading) * fish.speed;
-    fish.y += Math.sin(fish.heading) * fish.speed;
-    fish.swimPhase += fish.speed * 0.08;
+    target = clampTurnFrom(fish.heading, target, maxTurn * frameScale);
+    fish.heading = lerpAngle(
+      fish.heading,
+      target,
+      Math.min(1, turnEase * frameScale)
+    );
+    fish.x += Math.cos(fish.heading) * fish.speed * dt;
+    fish.y += Math.sin(fish.heading) * fish.speed * dt;
+    fish.swimPhase += fish.speed * 0.08 * dt;
 
     if (foodTarget && foodDistSq < Math.pow(Math.max(8, fish.headWidth * 0.9), 2)) {
       this.foodPellets.splice(foodTargetIndex, 1);
@@ -682,7 +695,7 @@
       curr.y = prev.y - (sdy / d) * len;
     }
 
-    if (Math.random() < 0.001) {
+    if (Math.random() < 0.001 * frameScale) {
       this.ripples.push({
         x: fish.x + rand(-4, 4),
         y: fish.y + rand(-3, 3),
@@ -768,7 +781,10 @@
 
     var tailAng = Math.atan2(cy[n - 1] - cy[n - 2], cx[n - 1] - cx[n - 2]);
     var tailSway = Math.sin(swim * 0.28) * 0.22;
-    var speedNorm = Math.max(0, Math.min(1, (fish.speed - 0.25) / 0.2));
+    var speedNorm = Math.max(
+      0,
+      Math.min(1, (fish.speed - SPEED_MIN) / (SPEED_MAX - SPEED_MIN))
+    );
     var finFlutter = Math.sin(swim * 0.5) * 0.08 * (1 - speedNorm * 0.5);
     var spreadAngle = 0.1 + 0.62 * (1 - speedNorm);
     var tailSpread = Math.sin(swim * 0.28) * 0.1 * (1 - speedNorm * 0.7);
@@ -1097,9 +1113,11 @@
 
   KoiPond.prototype.drawRipples = function () {
     var ctx = this.ctx;
+    var dt = this.dt || 1 / REF_FPS;
+    var frameScale = dt * REF_FPS;
     this.ripples = this.ripples.filter(function (r) {
-      r.r += 0.4;
-      r.alpha *= 0.962;
+      r.r += 0.4 * frameScale;
+      r.alpha *= Math.pow(0.962, frameScale);
       if (r.alpha < 0.02 || r.r > r.maxR) return false;
       ctx.beginPath();
       ctx.arc(r.x, r.y, r.r, 0, TAU);
@@ -1265,6 +1283,12 @@
       if (!this.fishes.length) this.seedFish();
     }
 
+    if (!this._lastFrameTs) {
+      this.dt = 1 / REF_FPS;
+    } else {
+      this.dt = Math.min(MAX_FRAME_DT, (timestamp - this._lastFrameTs) / 1000);
+    }
+    this._lastFrameTs = timestamp;
     this.time = timestamp;
 
     this.drawWater();
@@ -1296,7 +1320,8 @@
   KoiPond.prototype.start = function () {
     if (this.running) return;
     this.running = true;
-    this._lastTs = 0;
+    this._lastFrameTs = 0;
+    this.dt = 1 / REF_FPS;
     if (!this.fishes.length) this.seedFish();
     this.frame(
       window.performance && window.performance.now
