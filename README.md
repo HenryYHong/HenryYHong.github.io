@@ -1,14 +1,28 @@
 # Henry Hong's Portfolio Website
 
-Welcome to my personal website, [henryyhong.github.io](https://henryyhong.github.io/home.html)! This platform showcases my academic journey, technical projects, and professional experiences.
+Welcome to my personal website, [henryyhong.com](https://henryyhong.com/). This site showcases my academic journey, technical projects, research interests, and professional experiences.
 
 ## About the Website
-- **Purpose:** The website highlights my interests in computer science, cognitive science, and research. It includes details about my portfolio, career timeline, and contact information.
-- **Features:**
-  - A responsive and interactive layout for browsing my achievements and projects.
-  - A timeline that outlines my academic and professional milestones.
-  - Modal windows for detailed project overviews and technical insights.
-  - Links to my GitHub, LinkedIn, and email for networking or inquiries.
+
+- **Purpose:** Highlight my work across computer science, data science, research, teaching, and software engineering.
+- **Portfolio:** Features selected projects with interactive cards and modal pages for deeper technical details.
+- **Timeline:** Presents academic, research, teaching, and internship milestones in a horizontal timeline.
+- **Koi pond banner:** Includes an interactive koi pond banner with animated fish and click-to-feed behavior.
+- **Performance:** Uses lightweight portfolio thumbnails and lazy-loaded media for faster first visits.
+- **Contact:** Links to my GitHub, LinkedIn, email, and resume.
 
 ## Accessing the Website
-Visit [henryyhong.github.io/home.html](https://henryyhong.github.io/home.html) to explore my personal portfolio. Feel free to reach out via the contact links provided on the site!
+
+Visit [henryyhong.com](https://henryyhong.com/) to explore the live site.
+
+The GitHub Pages fallback is also available at [HenryYHong.github.io](https://henryyhong.github.io/).
+
+## Local Preview
+
+Run a local server from the project root:
+
+```bash
+python3 -m http.server 8000
+```
+
+Then open [http://localhost:8000/](http://localhost:8000/).
