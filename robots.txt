@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://henryyhong.com/sitemap.xml
