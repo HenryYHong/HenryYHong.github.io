@@ -737,7 +737,7 @@
                       <b>Link:</b>
                       <a href="https://www.ucsf.edu/" target="_blank">UCSF</a>
                     </li>
-                    <li><b>Date:</b> Fall 2024</li>
+                    <li><b>Date:</b> Fall 2024, rebuilt 2026</li>
                   </ul>
                   <button
                     class="btn btn-primary"
@@ -1323,7 +1323,7 @@
                 <img
                   class="img-fluid"
                   src="assets/img/portfolio-thumbs/asl.webp"
-                  alt="ASL gesture classifier project thumbnail"
+                  alt="ASL fingerspelling recognizer project thumbnail"
                   width="400"
                   height="300"
                   loading="lazy"
@@ -1331,10 +1331,10 @@
                 />
                 <div class="portfolio-caption">
                   <div class="portfolio-caption-heading">
-                    ASL Gesture Classifier
+                    ASL Fingerspelling Recognizer
                   </div>
                   <div class="portfolio-caption-subheading text-muted">
-                    OpenCV, MediaPipe, Random Forest
+                    MediaPipe, Random Forest, Live Browser Demo
                   </div>
                 </div>
               </div>
@@ -1589,10 +1589,13 @@
             <div class="row justify-content-center">
               <div class="col-lg-8">
                 <div class="modal-body">
-                  <h2>ASL Gesture Classifier</h2>
+                  <h2>ASL Fingerspelling Recognizer</h2>
                   <p class="item-intro text-muted">
-                    A machine learning model that classifies American Sign
-                    Language gestures.
+                    Reads the American Sign Language fingerspelling alphabet
+                    from your webcam, entirely in the browser.
+                    <a href="https://henryyhong.com/ASL-Classification/" target="_blank"
+                      >Try it yourself</a
+                    >.
                   </p>
                   <img
                     class="img-fluid d-block mx-auto"
@@ -1602,19 +1605,31 @@
                     decoding="async"
                   />
                   <p>
-                    This project focused on creating a robust machine learning
-                    model to classify American Sign Language (ASL) gestures,
-                    leveraging both convolutional neural networks (CNNs) and
-                    random forests to achieve accuracies of <b>80.3%</b> and
-                    <b>97.2%</b>, respectively. To overcome the challenges of
-                    limited pre-existing datasets, I generated my own training
-                    data by capturing real-life images of ASL gestures, ensuring
-                    model generalizability. The project utilized MediaPipe for
-                    hand landmark detection, followed by advanced feature
-                    extraction for training the models. The classifier
-                    demonstrated real-time gesture recognition capability,
-                    making it highly applicable for live ASL translation
-                    systems.
+                    This recognizer reads all <b>26</b> letters of the ASL
+                    fingerspelling alphabet, including J and Z, which are drawn
+                    rather than held and so cannot be read from a single frame.
+                    MediaPipe supplies 21 hand landmarks per frame, a random
+                    forest reads the handshape from a 101-value geometric
+                    feature, and a state machine decides when a letter has
+                    actually been signed rather than passed through on the way
+                    to another one.
+                  </p>
+                  <p>
+                    I recorded and labeled all of the training data myself,
+                    across four sessions on different days. Accuracy is measured
+                    by holding out an entire recording session, which is a
+                    harder and more honest test than a random split of frames:
+                    <b>0.76</b> for the static letters and <b>0.86</b> for the
+                    two motion letters. An earlier version of this project
+                    trained a CNN on 28x28 images, which scored
+                    <b>95.3%</b> on its benchmark and still failed on webcam
+                    input. Diagnosing that gap is what led to the
+                    landmark-based design.
+                  </p>
+                  <p>
+                    The trained models are ported to JavaScript and flattened
+                    into JSON, so the demo runs entirely on your own machine and
+                    the camera frames never leave your device.
                   </p>
                   <!-- <img
                     class="img-fluid d-block mx-auto"
@@ -1624,7 +1639,15 @@
                     An example of the data I generated for 'E'.
                   </p> -->
                   <ul class="list-inline">
-                    <li><b>Tech:</b> Python • MediaPipe • Random Forest • CNN • TensorFlow</li>
+                    <li><b>Tech:</b> Python • MediaPipe • scikit-learn • TensorFlow • JavaScript</li>
+                    <li>
+                      <b>Live demo:</b>
+                      <a
+                        href="https://henryyhong.com/ASL-Classification/"
+                        target="_blank"
+                        >Run it in your browser</a
+                      >
+                    </li>
                     <li>
                       <b>Link:</b>
                       <a
