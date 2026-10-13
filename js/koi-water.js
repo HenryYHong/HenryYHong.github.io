@@ -26,6 +26,7 @@
     "uniform sampler2D uFish;",
     "uniform sampler2D uPads;",
     "uniform sampler2D uRipple;",
+    "uniform vec4 uDrops[12];",
 
     "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
     "float noise(vec2 p) {",
@@ -95,9 +96,26 @@
     "  vec4 rip = texture2D(uRipple, (p / uCell + 1.0) / uGrid);",
     "  vec2 rg = (rip.rg - 0.5) * 48.0;",
     "  float rl = (rip.a - 0.5) * 6.0;",
-    "  g += rg;",
-    // A ripple crest is a small lens: brighter floor under it, darker under the trough.
-    "  float ringLight = clamp(1.0 / max((1.0 + rl) * (1.0 + rl), 0.25), 0.0, 2.5);",
+    "  g += rg * 0.6;",
+    // Food landing and fish feeding: small rings, too fine for the simulation grid,
+    // drawn directly. Each one is a crest with a smaller one behind it.
+    "  vec2 dropG = vec2(0.0);",
+    "  for (int i = 0; i < 12; i++) {",
+    "    vec4 d = uDrops[i];",
+    "    float age = uTime - d.z;",
+    "    if (d.w <= 0.0 || age < 0.0 || age > 1.2) continue;",
+    "    vec2 off = p - d.xy;",
+    "    float dist = length(off);",
+    "    float rad = 2.0 + 20.0 * age;",
+    "    float wid = 1.3 + 1.5 * age;",
+    "    float x1 = (dist - rad) / wid;",
+    "    float x2 = (dist - rad * 0.6) / wid;",
+    "    float wv = (x1 * exp(-x1 * x1) + 0.5 * x2 * exp(-x2 * x2)) * exp(-age * 3.2) * d.w;",
+    "    dropG += off / max(dist, 0.5) * wv;",
+    "  }",
+    "  g += dropG;",
+    // A ripple crest is a weak lens: a little brighter floor under it, darker under the trough.
+    "  float ringLight = clamp(1.0 / ((1.0 + 0.5 * rl) * (1.0 + 0.5 * rl)), 0.6, 1.6);",
 
     // Fine wind ripples: they only catch the sun, they are too small to focus light.
     // A breeze ruffles patches of the surface; the heading's patch stays calm.
@@ -109,14 +127,16 @@
     "  vec2 gw = vec2(noise(bq + vec2(0.05, 0.0)) - b0, noise(bq + vec2(0.0, 0.05)) - b0) * 20.0;",
     "  vec2 slope = g / 110.0 + gw * breeze * 0.09;",
 
-    // Pond floor, seen through the surface.
+    // Pond floor: silt and mud seen through green water.
     "  vec2 fp = p + g * 0.35;",
     "  float vis = clamp((p.y - uTop) / max(uRes.y - uTop, 1.0), 0.0, 1.0);",
     "  float big = fbm(fp * 0.003 + vec2(3.7, 1.3));",
-    "  vec3 shallow = vec3(0.13, 0.48, 0.48);",
-    "  vec3 deep = vec3(0.04, 0.2, 0.24);",
-    "  vec3 bed = mix(shallow, deep, clamp(vis * 0.95 + (big - 0.5) * 0.35, 0.0, 1.0));",
-    "  bed *= 0.92 + 0.1 * fbm(fp * 0.02 + vec2(9.2, 4.4));",
+    "  vec3 shallow = vec3(0.17, 0.34, 0.25);",
+    "  vec3 deep = vec3(0.05, 0.14, 0.12);",
+    "  vec3 bed = mix(shallow, deep, clamp(vis * 0.9 + (big - 0.5) * 0.5, 0.0, 1.0));",
+    "  bed *= 0.86 + 0.2 * fbm(fp * 0.02 + vec2(9.2, 4.4));",
+    "  float mud = smoothstep(0.45, 0.75, fbm(fp * 0.006 + vec2(1.9, 7.3)));",
+    "  bed = mix(bed, vec3(0.2, 0.22, 0.13) * (1.1 - vis * 0.6), mud * 0.35);",
 
     "  float fishSh = soft(uFish, fp - vec2(11.0, 14.0), 5.5);",
     "  float padSh = soft(uPads, fp - vec2(15.0, 19.0), 7.0);",
@@ -126,14 +146,16 @@
     "  float e1 = cells(cp, uTime * 0.55);",
     "  float e2 = cells(cp * 1.37 + vec2(5.2, 1.3), uTime * 0.7 + 2.0);",
     "  float thick = 0.6 + 0.8 * noise(cp * 1.7 + vec2(uTime * 0.1, 3.0));",
-    "  vec3 lw = vec3(0.07, 0.085, 0.1) * thick;",
+    "  vec3 lw = vec3(0.08, 0.095, 0.11) * thick;",
     "  vec3 c1 = 1.0 - smoothstep(vec3(0.0), lw, vec3(e1));",
     "  vec3 c2 = 1.0 - smoothstep(vec3(0.0), lw * 1.1, vec3(e2));",
     "  float halo = 1.0 - smoothstep(0.0, 0.28, e1);",
     "  vec3 caust = c1 * c1 * 0.8 + c2 * c2 * 0.3 + c1 * c2 * 0.9 + halo * halo * 0.22;",
-    "  caust *= (0.55 + 0.7 * fbm(fp * 0.004 + vec2(uTime * 0.02, 0.0))) * ringLight;",
-    "  vec3 col = bed * (0.86 - sh * 0.38) * mix(1.0, ringLight, 0.5);",
-    "  col += vec3(0.55, 0.92, 0.86) * caust * (1.0 - sh) * mix(0.34, 0.16, vis);",
+    "  float dapple = smoothstep(0.32, 0.66, fbm(fp * 0.0035 + vec2(uTime * 0.01, 2.0)));",
+    "  caust *= (0.2 + 1.15 * dapple) * ringLight;",
+    "  vec3 col = bed * (0.86 - sh * 0.38) * mix(1.0, ringLight, 0.35);",
+    // Sunlight reaching the floor has come through green water, so it is warm and soft.
+    "  col += vec3(0.78, 0.9, 0.58) * caust * (1.0 - sh) * mix(0.26, 0.12, vis);",
 
     // Fish, a little shallower: bent less, lit more softly, tinted by the water.
     "  vec2 fishP = p + g * 0.12;",
@@ -141,14 +163,24 @@
     "  float padOnFish = soft(uPads, fishP - vec2(6.0, 8.0), 4.0);",
     "  float fishLit = 1.0 - smoothstep(0.0, 0.3, e1);",
     "  vec3 fc = fish.rgb * (0.9 + 0.22 * fishLit) * (1.0 - 0.45 * padOnFish);",
-    "  fc = mix(fc, vec3(0.10, 0.38, 0.40) * fish.a, 0.12);",
+    "  fc = mix(fc, vec3(0.12, 0.26, 0.18) * fish.a, 0.14);",
     "  col = col * (1.0 - fish.a) + fc;",
 
     // The surface: sky and trees reflected in it, bent by its slope, and sun glints.
     "  vec3 n = normalize(vec3(-slope, 1.0));",
     "  vec2 rq = p * 0.0021 + n.xy * 2.2 + vec2(uTime * 0.006, uTime * 0.002);",
     "  float sky = smoothstep(0.35, 0.8, fbm(rq));",
-    "  col = mix(col, vec3(0.78, 0.92, 0.95), 0.02 + 0.06 * sky);",
+    "  col = mix(col, vec3(0.82, 0.9, 0.88), 0.02 + 0.06 * sky);",
+    // Ripple rings show mostly as the sky caught on the side that faces it.
+    "  col += vec3(0.75, 0.85, 0.8) * clamp(dot(rg, vec2(-0.6, -0.8)) / 24.0, 0.0, 1.0) * 0.3;",
+    "  col += vec3(0.8, 0.9, 0.85) * clamp(dot(dropG, vec2(-0.6, -0.8)) * 0.12, -0.07, 0.16);",
+    // Pollen and dust floating on the surface, drifting with the breeze.
+    "  vec2 dp = (p + vec2(uTime * 2.0, uTime * 0.7)) / 23.0;",
+    "  vec2 di = floor(dp);",
+    "  vec2 dc = vec2(hash(di + 5.1), hash(di + 9.7)) * 0.8 + 0.1;",
+    "  vec2 dd = (fract(dp) - dc) * 23.0;",
+    "  float speck = step(0.82, hash(di + 2.3)) * exp(-dot(dd, dd) * 1.4);",
+    "  col = mix(col, vec3(0.8, 0.76, 0.58), speck * 0.35);",
     // Sun glints: tiny ripple facets that tip toward the sun for an instant.
     // A few random points per patch of water, each flashing on its own beat.
     "  vec2 gp = p / 7.0;",
@@ -163,11 +195,11 @@
     // Lily pads float on top. Water hugs their edges in a thin bright line.
     "  vec4 pad = texture2D(uPads, uv);",
     "  float hug = clamp(soft(uPads, p, 2.0) - pad.a, 0.0, 1.0);",
-    "  col += vec3(0.65, 0.9, 0.85) * hug * 0.22;",
+    "  col += vec3(0.7, 0.86, 0.72) * hug * 0.22;",
     "  col = col * (1.0 - pad.a) + pad.rgb;",
 
     "  vec2 q = uv - vec2(0.5, 0.58);",
-    "  col *= 1.0 - 0.3 * smoothstep(0.32, 0.95, length(q * vec2(1.0, 1.4)));",
+    "  col *= 1.0 - 0.35 * smoothstep(0.32, 0.95, length(q * vec2(1.0, 1.4)));",
     "  col += (hash(gl_FragCoord.xy + fract(uTime)) - 0.5) / 255.0;",
     "  gl_FragColor = vec4(col, 1.0);",
     "}",
@@ -177,12 +209,13 @@
   var MAX_CELLS_X = 420;
   var STEP = 1 / 60;
   var WAVE_K = 0.14; // (c * dt / dx)^2; ripples spread about 22 cells a second
-  var WAVE_DAMP = 0.975; // small ripples die out within a second or so
+  var WAVE_DAMP = 0.96; // small ripples die out within half a second or so
   var WAVE_VISC = 0.008; // smooths out grid-sized wiggles faster than real ripples
   var SPONGE = 6; // cells of absorbing border so ripples leave the frame quietly
   var FLOOR_DEPTH = 60; // px of water between surface and floor, for ripple light
   var SLOPE_RANGE = 24; // must match the 48.0 decode (2 * range) in the shader
   var CURVE_RANGE = 3; // must match the 6.0 decode (2 * range) in the shader
+  var DROP_SLOTS = 12; // must match uDrops[12] in the shader
 
   function compile(gl, type, src) {
     var sh = gl.createShader(type);
@@ -215,6 +248,9 @@
     this.active = false;
     this.padSource = null;
     this.onRestore = null;
+    this.time = 0;
+    this.drops = new Float32Array(DROP_SLOTS * 4);
+    this.dropNext = 0;
 
     var self = this;
     this._onLost = function (e) {
@@ -280,7 +316,7 @@
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
     var u = {};
-    ["uRes", "uDpr", "uTime", "uTop", "uGrid", "uCell", "uFish", "uPads", "uRipple"].forEach(function (name) {
+    ["uRes", "uDpr", "uTime", "uTop", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
     });
     this.u = u;
@@ -393,6 +429,16 @@
     this.active = true;
   };
 
+  // A small ring where something touches the surface, starting `delay` seconds from now.
+  KoiWater.prototype.drop = function (x, y, strength, delay) {
+    var o = this.dropNext * 4;
+    this.drops[o] = x;
+    this.drops[o + 1] = y;
+    this.drops[o + 2] = this.time + (delay || 0);
+    this.drops[o + 3] = strength;
+    this.dropNext = (this.dropNext + 1) % DROP_SLOTS;
+  };
+
   KoiWater.prototype.step = function (dt) {
     if (!this.height || !this.active) return;
     this.acc = Math.min(this.acc + dt, STEP * 3);
@@ -497,7 +543,9 @@
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.uniform2f(u.uRes, this.w, this.h);
     gl.uniform1f(u.uDpr, this.canvas.width / this.w);
-    gl.uniform1f(u.uTime, seconds % 3600);
+    this.time = seconds % 3600;
+    gl.uniform1f(u.uTime, this.time);
+    gl.uniform4fv(u.uDrops, this.drops);
     gl.uniform1f(u.uTop, this.top);
     gl.uniform2f(u.uGrid, this.gw, this.gh);
     gl.uniform1f(u.uCell, this.cell);

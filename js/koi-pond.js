@@ -53,7 +53,6 @@
     },
     {
       id: "yamabuki",
-      metallic: true,
       bodyStops: ["#d7ac43", "#ffe8a1", "#e0a534", "#a96f1b"],
       scaleColor: "rgba(92, 58, 20, 0.09)",
       dorsalColor: "rgba(235, 182, 68, 0.66)",
@@ -80,7 +79,6 @@
     },
     {
       id: "platinum",
-      metallic: true,
       bodyStops: ["#ddd8cf", "#fffaf2", "#f2eadf", "#cfc5b7"],
       scaleColor: "rgba(120, 112, 102, 0.065)",
       dorsalColor: "rgba(232, 226, 216, 0.66)",
@@ -94,7 +92,6 @@
     },
     {
       id: "kin",
-      metallic: true,
       bodyStops: ["#c8891f", "#ffd36a", "#d99a28", "#965f16"],
       scaleColor: "rgba(78, 45, 12, 0.085)",
       dorsalColor: "rgba(218, 146, 36, 0.62)",
@@ -128,55 +125,11 @@
     return t * t * (3 - 2 * t);
   }
 
-  function parseColor(str) {
-    if (str.charAt(0) === "#") {
-      var v = parseInt(str.slice(1), 16);
-      return [(v >> 16) & 255, (v >> 8) & 255, v & 255, 1];
-    }
-    var m = str.match(/[\d.]+/g);
-    return [+m[0], +m[1], +m[2], m[3] != null ? +m[3] : 1];
-  }
-
   function rgba(c, alpha) {
     return (
       "rgba(" + Math.round(c[0]) + ", " + Math.round(c[1]) + ", " + Math.round(c[2]) + ", " +
       (alpha == null ? c[3] : alpha) + ")"
     );
-  }
-
-  function mixColor(a, b, t) {
-    return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)];
-  }
-
-  // Deeper fish are seen through more water, so their colors lean toward it.
-  var POND_WATER = [24, 86, 92, 1];
-
-  function tintPalette(palette, amount) {
-    function tint(str) {
-      var c = parseColor(str);
-      var t = mixColor(c, POND_WATER, amount);
-      t[3] = c[3];
-      return rgba(t);
-    }
-    return {
-      id: palette.id,
-      colorGroup: palette.colorGroup,
-      metallic: !!palette.metallic,
-      bodyStops: palette.bodyStops.map(tint),
-      scaleColor: palette.scaleColor,
-      dorsalColor: tint(palette.dorsalColor),
-      finStops: palette.finStops.map(tint),
-      patchRange: palette.patchRange,
-      patchColors: palette.patchColors.map(function (pc) {
-        return { fill: tint(pc.fill), shade: pc.shade };
-      }),
-    };
-  }
-
-  // Cubic Bezier coordinate, for running fin rays out to a fin's edge.
-  function bez(a, b, c, d, t) {
-    var u = 1 - t;
-    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
   }
 
   // Sunlight comes from the upper left of the screen, matching the water's shadows.
@@ -252,9 +205,8 @@
       return neckW * (0.58 + 0.42 * Math.pow(ht, 0.9));
     }
 
-    // A koi stays full through the middle and narrows late, toward the tail.
     var cone = (t - peakT) / (1 - peakT);
-    return neckW * Math.max(0.06, 1 - 0.5 * cone - 0.44 * Math.pow(cone, 2.2));
+    return neckW * Math.max(0.025, 1 - cone);
   };
 
   KoiPond.prototype.traceIceCreamBody = function (ctx, left, right, cx0, cy0, headAng, hw, n) {
@@ -285,50 +237,20 @@
     ctx.closePath();
   };
 
-  // Scales overlap like roof tiles; from above you see the back edge of each one
-  // as a faint arc. They show most along the back and fade toward the flanks,
-  // where the body curves away.
-  KoiPond.prototype.drawBodyScales = function (ctx, cx, cy, nx, ny, widths, n, hw, scaleColor, metallic) {
-    var c = parseColor(scaleColor || "rgba(150, 145, 140, 0.07)");
-    var size = Math.max(1.2, hw * 0.14);
-    var start = Math.round((n - 1) * 0.24);
-    var back = [];
-    var side = [];
-    for (var i = start; i < n - 4; i++) {
-      var dir = Math.atan2(cy[i + 1] - cy[i], cx[i + 1] - cx[i]);
-      var cols = Math.max(2, Math.round((widths[i] * 2) / (size * 1.6)));
-      var stagger = (i % 2) * 0.5;
-      for (var k = 0; k < cols; k++) {
-        var lat = ((k + 0.25 + stagger) / cols - 0.5) * 1.8;
-        if (lat < -0.9 || lat > 0.9) continue;
-        var list = Math.abs(lat) < 0.5 ? back : side;
-        list.push(cx[i] + nx[i] * widths[i] * lat, cy[i] + ny[i] * widths[i] * lat, dir);
+  KoiPond.prototype.drawBodyScales = function (ctx, cx, cy, nx, ny, widths, n, hw, scaleColor) {
+    ctx.fillStyle = scaleColor || "rgba(150, 145, 140, 0.07)";
+    for (var i = 2; i < n - 4; i++) {
+      if (i % 2 !== 0) continue;
+      var cols = Math.max(2, Math.floor(widths[i] / 2.8));
+      for (var c = 0; c < cols; c++) {
+        var lateral = ((c + 0.5) / cols - 0.5) * 1.5;
+        var sx = cx[i] + nx[i] * widths[i] * lateral;
+        var sy = cy[i] + ny[i] * widths[i] * lateral;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 0.9 + hw * 0.018, 0, TAU);
+        ctx.fill();
       }
     }
-    var strength = Math.min(metallic ? 0.2 : 0.15, c[3] * 2);
-    ctx.lineWidth = Math.max(0.35, hw * 0.026);
-    [back, side].forEach(function (list, li) {
-      ctx.strokeStyle = rgba(c, li === 0 ? strength : strength * 0.5);
-      ctx.beginPath();
-      for (var e = 0; e < list.length; e += 3) {
-        var a0 = list[e + 2] - 1.1;
-        ctx.moveTo(list[e] + Math.cos(a0) * size, list[e + 1] + Math.sin(a0) * size);
-        ctx.arc(list[e], list[e + 1], size, a0, list[e + 2] + 1.1);
-      }
-      ctx.stroke();
-    });
-    if (!metallic) return;
-    // Metallic koi: each scale catches a little light just inside its edge.
-    ctx.strokeStyle = "rgba(255, 250, 228, 0.12)";
-    ctx.beginPath();
-    for (var e = 0; e < back.length; e += 3) {
-      var b0 = back[e + 2] - 0.85;
-      var sx = back[e] - Math.cos(back[e + 2]) * size * 0.35;
-      var sy = back[e + 1] - Math.sin(back[e + 2]) * size * 0.35;
-      ctx.moveTo(sx + Math.cos(b0) * size, sy + Math.sin(b0) * size);
-      ctx.arc(sx, sy, size, b0, back[e + 2] + 0.85);
-    }
-    ctx.stroke();
   };
 
   KoiPond.prototype.resize = function () {
@@ -587,9 +509,6 @@
     var heading = preset.angle;
     var segments = [];
     var palette = preset.palette || this.createKoiPalette();
-    // depth 1 swims just under the surface; depth 0 is down near the floor.
-    var depth = rand(0, 1);
-    var look = tintPalette(palette, (1 - depth) * 0.2);
 
     for (var i = 0; i < segCount; i++) {
       segments.push({
@@ -613,11 +532,9 @@
       wanderSpeed: rand(0.004, 0.008),
       turnTarget: heading,
       nextTurnAt: rand(1200, 3600),
-      depth: depth,
+      depth: rand(0, 1),
       palette: palette,
-      look: look,
-      bodyRGB: look.bodyStops.map(parseColor),
-      patches: this.createKoiPatches(look),
+      patches: this.createKoiPatches(palette),
     };
   };
 
@@ -690,10 +607,10 @@
     }
 
     if (this.water) {
-      // Each pellet lands with its own little plop.
+      // Pellets barely break the surface: a few small rings, landing a beat apart.
       for (var s = this.foodPellets.length - count; s < this.foodPellets.length; s += 2) {
         var landed = this.foodPellets[s];
-        this.water.disturb(landed.x, landed.y, 3, rand(0.35, 0.6));
+        this.water.drop(landed.x, landed.y, rand(2, 3), rand(0, 0.15));
       }
       return;
     }
@@ -927,7 +844,7 @@
     if (foodTarget && foodDistSq < Math.pow(Math.max(8, fish.headWidth * 0.9), 2)) {
       this.foodPellets.splice(foodTargetIndex, 1);
       if (this.water) {
-        this.water.disturb(foodTarget.x, foodTarget.y, 3.5, 0.45);
+        this.water.drop(foodTarget.x, foodTarget.y, 2);
       } else {
         this.ripples.push({
           x: foodTarget.x,
@@ -966,7 +883,7 @@
 
     if (Math.random() < 0.001 * frameScale) {
       if (this.water) {
-        this.water.disturb(fish.x, fish.y, 3.5, 0.35);
+        this.water.drop(fish.x, fish.y, 1.4);
         return;
       }
       this.ripples.push({
@@ -1013,58 +930,6 @@
     return { cx: cx, cy: cy, nx: nx, ny: ny, widths: widths, n: n };
   };
 
-  // Light across the body, one slice at a time so it follows the bend: bright
-  // along the back, a little toward the sun. Every slice uses the same span, so
-  // neighbors match where they meet. The edges are darkened separately.
-  var WHITE = [255, 255, 255, 1];
-
-  KoiPond.prototype.shadeBody = function (ctx, geom, rgb, hw, metallic) {
-    var cx = geom.cx;
-    var cy = geom.cy;
-    var nx = geom.nx;
-    var ny = geom.ny;
-    var widths = geom.widths;
-    var span = hw * 1.05;
-    var shine = rgba(mixColor(rgb[1], WHITE, metallic ? 0.32 : 0.07));
-    for (var i = 0; i < geom.n - 1; i++) {
-      var w = Math.max(widths[i], widths[i + 1]) * 1.25 + 1;
-      var dx = cx[i + 1] - cx[i];
-      var dy = cy[i + 1] - cy[i];
-      var len = Math.sqrt(dx * dx + dy * dy) || 1;
-      var ux = dx / len;
-      var uy = dy / len;
-      var ahead = i === 0 ? hw * 0.7 : 0.6;
-      var x0 = cx[i] - ux * ahead;
-      var y0 = cy[i] - uy * ahead;
-      var x1 = cx[i + 1] + ux * 0.8;
-      var y1 = cy[i + 1] + uy * 0.8;
-      var mx = nx[i] + nx[i + 1];
-      var my = ny[i] + ny[i + 1];
-      var ml = Math.sqrt(mx * mx + my * my) || 1;
-      mx /= ml;
-      my /= ml;
-      var gx = (cx[i] + cx[i + 1]) * 0.5;
-      var gy = (cy[i] + cy[i + 1]) * 0.5;
-      // Positive when the +n flank faces the sun.
-      var ld = mx * LIGHT_X + my * LIGHT_Y;
-      var mid = 0.5 + 0.1 * ld;
-      var g = ctx.createLinearGradient(gx - mx * span, gy - my * span, gx + mx * span, gy + my * span);
-      g.addColorStop(0, rgba(mixColor(rgb[2], rgb[0], Math.max(0, -ld) * 0.6)));
-      g.addColorStop(mid - 0.22, rgba(rgb[1]));
-      g.addColorStop(mid, shine);
-      g.addColorStop(mid + 0.22, rgba(rgb[1]));
-      g.addColorStop(1, rgba(mixColor(rgb[2], rgb[0], Math.max(0, ld) * 0.6)));
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.moveTo(x0 - nx[i] * w, y0 - ny[i] * w);
-      ctx.lineTo(x1 - nx[i + 1] * w, y1 - ny[i + 1] * w);
-      ctx.lineTo(x1 + nx[i + 1] * w, y1 + ny[i + 1] * w);
-      ctx.lineTo(x0 + nx[i] * w, y0 + ny[i] * w);
-      ctx.closePath();
-      ctx.fill();
-    }
-  };
-
   KoiPond.prototype.drawKoi = function (fish) {
     var ctx = this.ctx;
     ctx.save();
@@ -1079,27 +944,21 @@
     var hw = fish.headWidth;
     var swim = fish.swimPhase;
     var depth = fish.depth == null ? 0.5 : fish.depth;
-    var palette = fish.look || fish.palette || {};
+    var palette = fish.palette || {};
     var bodyStops = palette.bodyStops || ["#ede8e0", "#fffefb", "#faf7f2", "#e8e2d8"];
-    var bodyRGB = fish.bodyRGB || bodyStops.map(parseColor);
     var finStops = palette.finStops || [
       "rgba(248, 249, 252, 0.92)",
       "rgba(225, 232, 240, 0.78)",
       "rgba(200, 210, 220, 0.4)",
     ];
     var idx;
-    var ray;
     var headAng = Math.atan2(cy[0] - cy[1], cx[0] - cx[1]);
-    var self = this;
 
     var left = [];
     var right = [];
     for (idx = 0; idx < n; idx++) {
       left.push({ x: cx[idx] - nx[idx] * widths[idx], y: cy[idx] - ny[idx] * widths[idx] });
       right.push({ x: cx[idx] + nx[idx] * widths[idx], y: cy[idx] + ny[idx] * widths[idx] });
-    }
-    function traceBody() {
-      self.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
     }
 
     // The water shader casts a soft shadow on the pond floor instead.
@@ -1108,7 +967,7 @@
       ctx.save();
       ctx.translate(1.4 + depth * 1.2, 2.2 + depth * 1.3);
       ctx.beginPath();
-      traceBody();
+      this.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
       ctx.fill();
       ctx.restore();
     }
@@ -1133,27 +992,10 @@
     var tailScale = Math.max(0.65, 0.5 + widthRatio * 0.5);
     var lobeLen = hw * 2.75 * tailScale;
     var lobeW = hw * 0.68 * tailScale;
-    var rayWidth = Math.max(0.35, hw * 0.027);
 
     ctx.save();
     ctx.translate(tx, ty);
     ctx.rotate(tailAng + tailSway);
-    // The tail is one fin forked in two, so a thin web joins the lobes near the base.
-    var spreadA = spreadAngle + tailSpread;
-    var webD = lobeLen * 0.6;
-    var webOff = lobeW * 0.22;
-    var upX = webD * Math.cos(spreadA) - webOff * Math.sin(spreadA);
-    var upY = -(webD * Math.sin(spreadA) + webOff * Math.cos(spreadA));
-    var wg = ctx.createLinearGradient(0, 0, webD, 0);
-    wg.addColorStop(0, finStops[0]);
-    wg.addColorStop(1, finStops[2]);
-    ctx.fillStyle = wg;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(upX, upY);
-    ctx.quadraticCurveTo(lobeLen * 0.3, 0, upX, -upY);
-    ctx.closePath();
-    ctx.fill();
     for (var side = -1; side <= 1; side += 2) {
       ctx.save();
       ctx.rotate(side * (spreadAngle + tailSpread));
@@ -1181,18 +1023,6 @@
         0
       );
       ctx.fill();
-      // Fin rays run from the base out to the trailing edge.
-      ctx.strokeStyle = "rgba(255, 250, 240, 0.2)";
-      ctx.lineWidth = rayWidth;
-      ctx.beginPath();
-      for (ray = 0; ray < 6; ray++) {
-        var q = 0.4 + ray * 0.12;
-        var rx = bez(0, lobeLen * 0.2, lobeLen * 0.62, lobeLen, q) * 0.93;
-        var ry = side * bez(0, lobeW * 0.1, lobeW * 0.98, lobeW * 0.14, q) * 0.93;
-        ctx.moveTo(lobeLen * 0.05, 0);
-        ctx.quadraticCurveTo(rx * 0.55, ry * 0.4, rx, ry);
-      }
-      ctx.stroke();
       ctx.restore();
     }
     ctx.restore();
@@ -1213,7 +1043,88 @@
       ctx.restore();
     }
 
-    // Pectoral fins hang below the body, so the body overlaps their roots.
+    var bodyGrad = ctx.createLinearGradient(
+      cx[0] - nx[0] * hw * 0.5,
+      cy[0] - ny[0] * hw * 0.5,
+      cx[0] + nx[0] * hw * 0.5,
+      cy[0] + ny[0] * hw * 0.5
+    );
+    bodyGrad.addColorStop(0, bodyStops[0]);
+    bodyGrad.addColorStop(0.35, bodyStops[1]);
+    bodyGrad.addColorStop(0.65, bodyStops[2]);
+    bodyGrad.addColorStop(1, bodyStops[3]);
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    this.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
+    ctx.fill();
+
+    ctx.save();
+    try {
+      ctx.beginPath();
+      this.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
+      ctx.clip();
+      this.drawBodyScales(ctx, cx, cy, nx, ny, widths, n, hw, palette.scaleColor);
+
+      (fish.patches || []).forEach(function (patch) {
+      var pIdx = Math.min(n - 2, Math.max(1, Math.round(patch.t * (n - 1))));
+      var dorsalShift = -0.32;
+      var px = cx[pIdx] + nx[pIdx] * hw * (dorsalShift + patch.offset);
+      var py = cy[pIdx] + ny[pIdx] * hw * (dorsalShift + patch.offset);
+      var prx = hw * patch.rx;
+      var pry = hw * patch.ry;
+      var patchAng = Math.atan2(cy[pIdx] - cy[pIdx + 1], cx[pIdx] - cx[pIdx + 1]);
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(patchAng);
+      var patchColor = patch.color || {
+        fill: "#b9462f",
+        shade: "rgba(120, 34, 24, 0.16)",
+      };
+      ctx.globalAlpha = patch.deep ? 0.94 : 0.88;
+      ctx.fillStyle = patchColor.fill;
+      ctx.beginPath();
+      if (patch.points && patch.points.length > 2) {
+        ctx.save();
+        ctx.rotate(patch.rot || 0);
+        var first = patch.points[0];
+        ctx.moveTo(first.x * prx, first.y * pry);
+        for (var p = 1; p <= patch.points.length; p++) {
+          var curr = patch.points[p % patch.points.length];
+          var prev = patch.points[(p - 1) % patch.points.length];
+          ctx.quadraticCurveTo(
+            prev.x * prx,
+            prev.y * pry,
+            ((prev.x + curr.x) * 0.5) * prx,
+            ((prev.y + curr.y) * 0.5) * pry
+          );
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.ellipse(0, 0, prx, pry, patch.rot || 0, 0, TAU);
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = patchColor.shade;
+      ctx.beginPath();
+      ctx.ellipse(prx * -0.08, pry * 0.08, prx * 0.58, pry * 0.46, patch.rot || 0, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    });
+    } finally {
+      ctx.restore();
+    }
+
+    ctx.strokeStyle = "rgba(50, 60, 68, 0.1)";
+    ctx.lineWidth = 0.75;
+    ctx.beginPath();
+    this.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
+    ctx.stroke();
+
     var pecIdx = peakIdx;
     var bodyAng = Math.atan2(cy[pecIdx + 1] - cy[pecIdx], cx[pecIdx + 1] - cx[pecIdx]);
     var pecSides = [
@@ -1253,200 +1164,25 @@
       );
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = "rgba(255, 252, 245, 0.2)";
-      ctx.lineWidth = rayWidth;
-      ctx.beginPath();
-      for (var pr = 0; pr < 6; pr++) {
-        var pq = 0.32 + pr * 0.13;
-        ctx.moveTo(finLen * 0.04, 0);
-        ctx.lineTo(
-          bez(0, finLen * 0.22, finLen * 0.58, finLen * 0.88, pq) * 0.92,
-          side.lateral * bez(0, finSpan * 0.55, finSpan, finSpan * 0.35, pq) * 0.92
-        );
-      }
-      ctx.stroke();
-      // The leading edge is a thicker ray that catches the light.
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.26)";
-      ctx.lineWidth = Math.max(0.45, hw * 0.04);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.bezierCurveTo(
-        finLen * 0.22,
-        side.lateral * finSpan * 0.55,
-        finLen * 0.58,
-        side.lateral * finSpan,
-        finLen * 0.88,
-        side.lateral * finSpan * 0.35
-      );
-      ctx.stroke();
       ctx.restore();
     });
 
-    ctx.fillStyle = bodyStops[2];
-    ctx.beginPath();
-    traceBody();
-    ctx.fill();
-
-    ctx.save();
-    try {
-      ctx.beginPath();
-      traceBody();
-      ctx.clip();
-      this.shadeBody(ctx, geom, bodyRGB, hw, palette.metallic);
-
-      (fish.patches || []).forEach(function (patch) {
-      var pIdx = Math.min(n - 2, Math.max(1, Math.round(patch.t * (n - 1))));
-      var dorsalShift = -0.32;
-      var px = cx[pIdx] + nx[pIdx] * hw * (dorsalShift + patch.offset);
-      var py = cy[pIdx] + ny[pIdx] * hw * (dorsalShift + patch.offset);
-      var prx = hw * patch.rx;
-      var pry = hw * patch.ry;
-      var patchAng = Math.atan2(cy[pIdx] - cy[pIdx + 1], cx[pIdx] - cx[pIdx + 1]);
-
-      ctx.save();
-      ctx.translate(px, py);
-      ctx.rotate(patchAng);
-      var patchColor = patch.color || {
-        fill: "#b9462f",
-        shade: "rgba(120, 34, 24, 0.16)",
-      };
-      var prgb = patch.rgb || (patch.rgb = parseColor(patchColor.fill));
-      var hasPoints = patch.points && patch.points.length > 2;
-      // Shade the patch across the body like the skin under it. The gradient is
-      // built in the patch's own rotated frame.
-      var turn = patchAng + (hasPoints ? patch.rot || 0 : 0);
-      var pcos = Math.cos(turn);
-      var psin = Math.sin(turn);
-      var pw = widths[pIdx];
-      var ax = cx[pIdx] - nx[pIdx] * pw - px;
-      var ay = cy[pIdx] - ny[pIdx] * pw - py;
-      var bx = cx[pIdx] + nx[pIdx] * pw - px;
-      var by = cy[pIdx] + ny[pIdx] * pw - py;
-      var pld = nx[pIdx] * LIGHT_X + ny[pIdx] * LIGHT_Y;
-      var pg = ctx.createLinearGradient(
-        ax * pcos + ay * psin,
-        -ax * psin + ay * pcos,
-        bx * pcos + by * psin,
-        -bx * psin + by * pcos
-      );
-      var plit = [prgb[0] * 0.9, prgb[1] * 0.9, prgb[2] * 0.9, 1];
-      pg.addColorStop(0, rgba(plit));
-      pg.addColorStop(0.5 + 0.1 * pld, rgba(mixColor(prgb, WHITE, 0.08)));
-      pg.addColorStop(1, rgba(plit));
-
-      ctx.globalAlpha = patch.deep ? 0.94 : 0.88;
-      ctx.fillStyle = pg;
-      ctx.beginPath();
-      if (hasPoints) {
-        ctx.save();
-        ctx.rotate(patch.rot || 0);
-        var first = patch.points[0];
-        ctx.moveTo(first.x * prx, first.y * pry);
-        for (var p = 1; p <= patch.points.length; p++) {
-          var curr = patch.points[p % patch.points.length];
-          var prev = patch.points[(p - 1) % patch.points.length];
-          ctx.quadraticCurveTo(
-            prev.x * prx,
-            prev.y * pry,
-            ((prev.x + curr.x) * 0.5) * prx,
-            ((prev.y + curr.y) * 0.5) * pry
-          );
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      } else {
-        ctx.ellipse(0, 0, prx, pry, patch.rot || 0, 0, TAU);
-        ctx.fill();
-      }
-
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = patchColor.shade;
-      ctx.beginPath();
-      ctx.ellipse(prx * -0.08, pry * 0.08, prx * 0.58, pry * 0.46, patch.rot || 0, 0, TAU);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.restore();
-    });
-
-      this.drawBodyScales(ctx, cx, cy, nx, ny, widths, n, hw, palette.scaleColor, palette.metallic);
-
-      // The body rounds away from view at its edges. A blurred shadow cast inward
-      // from a frame around the fish darkens them evenly, patches included.
-      var minX = Infinity;
-      var minY = Infinity;
-      var maxX = -Infinity;
-      var maxY = -Infinity;
-      for (idx = 0; idx < n; idx++) {
-        minX = Math.min(minX, left[idx].x, right[idx].x);
-        minY = Math.min(minY, left[idx].y, right[idx].y);
-        maxX = Math.max(maxX, left[idx].x, right[idx].x);
-        maxY = Math.max(maxY, left[idx].y, right[idx].y);
-      }
-      var pad = hw * 1.5;
-      ctx.globalCompositeOperation = "multiply";
-      ctx.shadowColor = rgba(bodyRGB[3], 0.75);
-      ctx.shadowBlur = hw * 0.5 * (this.dpr || 1);
-      ctx.fillStyle = rgba(bodyRGB[3], 1);
-      ctx.beginPath();
-      ctx.rect(minX - pad, minY - pad, maxX - minX + pad * 2, maxY - minY + pad * 2);
-      traceBody();
-      ctx.fill("evenodd");
-      ctx.shadowColor = "transparent";
-      ctx.shadowBlur = 0;
-      ctx.globalCompositeOperation = "source-over";
-
-      // The smooth head ends at the gill covers, an arch across the nape.
-      var gi = Math.max(3, Math.round((n - 1) * 0.17));
-      ctx.lineWidth = Math.max(0.5, hw * 0.04);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
-      ctx.beginPath();
-      ctx.moveTo(left[gi].x, left[gi].y);
-      ctx.quadraticCurveTo(cx[gi + 1], cy[gi + 1], right[gi].x, right[gi].y);
-      ctx.stroke();
-      ctx.strokeStyle = "rgba(48, 34, 22, 0.13)";
-      ctx.beginPath();
-      ctx.moveTo(left[gi].x, left[gi].y);
-      ctx.quadraticCurveTo(cx[gi + 2], cy[gi + 2], right[gi].x, right[gi].y);
-      ctx.stroke();
-    } finally {
-      ctx.restore();
-    }
-
-    ctx.strokeStyle = "rgba(50, 60, 68, 0.1)";
-    ctx.lineWidth = 0.75;
-    ctx.beginPath();
-    traceBody();
-    ctx.stroke();
-
-    // Dorsal fin: a thin fin standing up along the back, leaning with each stroke.
-    var d0 = 5;
-    var d1 = n - 7;
-    var lean = Math.sin(swim * 0.45 - 0.9) * hw * 0.05;
-    var finL = [];
-    var finR = [];
-    for (idx = d0; idx <= d1; idx++) {
-      var along = (idx - d0) / (d1 - d0);
-      var dw = hw * 0.07 * (1 - 0.72 * along) * smoothstep(0, 0.12, along);
-      var off = lean * along;
-      finL.push(cx[idx] + nx[idx] * (off - dw), cy[idx] + ny[idx] * (off - dw));
-      finR.push(cx[idx] + nx[idx] * (off + dw), cy[idx] + ny[idx] * (off + dw));
-    }
-    ctx.fillStyle = palette.dorsalColor || "rgba(230, 236, 242, 0.72)";
-    ctx.beginPath();
-    ctx.moveTo(finL[0], finL[1]);
-    for (idx = 2; idx < finL.length; idx += 2) ctx.lineTo(finL[idx], finL[idx + 1]);
-    for (idx = finR.length - 2; idx >= 0; idx -= 2) ctx.lineTo(finR[idx], finR[idx + 1]);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = "rgba(55, 48, 38, 0.16)";
-    ctx.lineWidth = Math.max(0.45, hw * 0.028);
+    ctx.strokeStyle = palette.dorsalColor || "rgba(230, 236, 242, 0.72)";
+    ctx.lineWidth = Math.max(0.9, hw * 0.08);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();
-    ctx.moveTo(cx[d0], cy[d0]);
-    for (idx = d0 + 1; idx < n - 8; idx++) {
+    ctx.moveTo(cx[4], cy[4]);
+    for (idx = 5; idx < n - 6; idx++) {
+      ctx.lineTo(cx[idx], cy[idx]);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(55, 48, 38, 0.16)";
+    ctx.lineWidth = Math.max(0.45, hw * 0.028);
+    ctx.beginPath();
+    ctx.moveTo(cx[5], cy[5]);
+    for (idx = 6; idx < n - 8; idx++) {
       ctx.lineTo(cx[idx], cy[idx]);
     }
     ctx.stroke();
@@ -1475,18 +1211,13 @@
       },
     ];
 
-    // A bronze iris around a black pupil.
+    ctx.fillStyle = "#1c2226";
     eyePositions.forEach(function (eye) {
-      ctx.fillStyle = "rgba(146, 122, 86, 0.95)";
       ctx.beginPath();
       ctx.arc(eye.x, eye.y, eyeR, 0, TAU);
       ctx.fill();
-      ctx.fillStyle = "#111517";
-      ctx.beginPath();
-      ctx.arc(eye.x, eye.y, eyeR * 0.68, 0, TAU);
-      ctx.fill();
     });
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
     eyePositions.forEach(function (eye, i) {
       var dorsalX = -ny[eyeIdx] * hw * 0.012 * (i === 0 ? 1 : -1);
       var dorsalY = nx[eyeIdx] * hw * 0.012 * (i === 0 ? 1 : -1);
@@ -1497,17 +1228,6 @@
 
     var whiskerFwdX = Math.cos(headAng);
     var whiskerFwdY = Math.sin(headAng);
-
-    // Nostrils, between the eyes and the snout.
-    var noseX = cx[0] + whiskerFwdX * hw * 0.16;
-    var noseY = cy[0] + whiskerFwdY * hw * 0.16;
-    ctx.fillStyle = "rgba(42, 30, 22, 0.3)";
-    for (var ns = -1; ns <= 1; ns += 2) {
-      ctx.beginPath();
-      ctx.arc(noseX + nx[0] * hw * 0.17 * ns, noseY + ny[0] * hw * 0.17 * ns, Math.max(0.4, hw * 0.032), 0, TAU);
-      ctx.fill();
-    }
-
     var snoutTipX = cx[0] + whiskerFwdX * hw * 0.38;
     var snoutTipY = cy[0] + whiskerFwdY * hw * 0.38;
     var whiskerLen = hw * 0.2;
@@ -1522,9 +1242,8 @@
       },
     ];
 
-    // Barbels are skin colored, not white.
-    ctx.strokeStyle = "rgba(236, 214, 188, 0.62)";
-    ctx.lineWidth = 0.65;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.lineWidth = 0.7;
     ctx.lineCap = "round";
     whiskerBases.forEach(function (base) {
       var u = 1 - base.t;
@@ -1552,7 +1271,6 @@
       console.error("drawKoi error", err);
     } finally {
       ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = "source-over";
       ctx.restore();
     }
   };
@@ -1561,10 +1279,10 @@
     var ctx = this.ctx;
     var t = this.time * 0.0004;
     var g = ctx.createLinearGradient(0, 0, 0, this.h);
-    g.addColorStop(0, "#3aa2a0");
-    g.addColorStop(0.36, "#207982");
-    g.addColorStop(0.72, "#155866");
-    g.addColorStop(1, "#0b3544");
+    g.addColorStop(0, "#36604a");
+    g.addColorStop(0.36, "#2b503c");
+    g.addColorStop(0.72, "#1e3a2e");
+    g.addColorStop(1, "#11251e");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.w, this.h);
 
@@ -1577,8 +1295,8 @@
       this.h * 0.28,
       this.w * 0.62
     );
-    cg.addColorStop(0, "#a8e0d8");
-    cg.addColorStop(0.45, "rgba(92, 174, 172, 0.35)");
+    cg.addColorStop(0, "#c2dcb0");
+    cg.addColorStop(0.45, "rgba(118, 160, 116, 0.35)");
     cg.addColorStop(1, "transparent");
     ctx.fillStyle = cg;
     ctx.fillRect(0, 0, this.w, this.h);
