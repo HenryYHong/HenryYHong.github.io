@@ -28,6 +28,8 @@
     "uniform sampler2D uPads;",
     "uniform sampler2D uRipple;",
     "uniform vec4 uDrops[12];",
+    "uniform sampler2D uMoon;",
+    "uniform float uMoonReady;",
 
     "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
     "float noise(vec2 p) {",
@@ -65,42 +67,6 @@
     "}",
 
 
-    // The moon's face, in units of its radius. Light comes from the upper left,
-    // so inside a crater the upper-left wall is in shadow and the far wall is lit,
-    // and the outer crest catches a little light. A sea is a soft dark patch.
-    "float crater(vec2 q, vec2 c, float r) {",
-    "  vec2 o = (q - c) / r;",
-    "  float d = length(o);",
-    "  float side = dot(o / max(d, 0.001), vec2(0.6, 0.8));",
-    "  float wall = smoothstep(0.35, 0.8, d) - smoothstep(0.9, 1.0, d);",
-    "  float crest = smoothstep(0.9, 1.0, d) - smoothstep(1.0, 1.25, d);",
-    "  return -0.15 * (1.0 - smoothstep(0.8, 1.0, d)) + 0.55 * wall * side - 0.2 * crest * side;",
-    "}",
-    "float sea(vec2 q, vec2 c, float k) { vec2 o = q - c; return exp(-dot(o, o) * k); }",
-    "float moonFace(vec2 q) {",
-    "  float m = sea(q, vec2(-0.3, -0.32), 10.0) + sea(q, vec2(0.12, -0.3), 16.0)",
-    "          + sea(q, vec2(0.3, 0.02), 12.0) + 0.85 * sea(q, vec2(-0.55, 0.12), 6.0)",
-    "          + 0.9 * sea(q, vec2(0.64, -0.16), 34.0) + 0.6 * sea(q, vec2(0.18, 0.3), 18.0);",
-    "  m = clamp(m, 0.0, 1.0) * (0.8 + 0.4 * noise(q * 7.0 + 4.0));",
-    "  float f = -0.24 * m;",
-    "  f += 0.3 * crater(q, vec2(-0.27, 0.0), 0.09);",   // Copernicus
-    "  f += 0.25 * crater(q, vec2(-0.5, 0.03), 0.055);",  // Kepler
-    "  f += 0.3 * crater(q, vec2(-0.15, -0.62), 0.08);",  // Plato
-    "  f += 0.3 * crater(q, vec2(0.72, 0.22), 0.08);",    // Langrenus
-    "  f += 0.35 * crater(q, vec2(-0.12, 0.8), 0.12);",   // Clavius
-    "  f += 0.3 * crater(q, vec2(0.25, 0.62), 0.07);",
-    // Tycho: young and bright, with faint rays.
-    "  vec2 t = q - vec2(-0.06, 0.62);",
-    "  float td = length(t);",
-    "  f += 0.3 * exp(-td * td * 900.0) + 0.06 * pow(abs(sin(atan(t.y, t.x) * 6.0)), 12.0) * exp(-td * 3.0);",
-    // Small craters scattered over the highlands.
-    "  vec2 cg = q * 4.5;",
-    "  vec2 ci = floor(cg);",
-    "  vec2 cc = vec2(hash(ci + 1.3), hash(ci + 8.1)) * 0.6 + 0.2;",
-    "  float cr = 0.12 + 0.12 * hash(ci + 4.4);",
-    "  f += 0.16 * step(0.6, hash(ci + 9.9)) * (1.0 - m) * crater(fract(cg), cc, cr);",
-    "  return f;",
-    "}",
     "float soft(sampler2D tex, vec2 p, float r) {",
     "  vec2 px = 1.0 / uRes;",
     "  float d = r * 0.7071;",
@@ -235,8 +201,9 @@
     "  float md = length(mo);",
     "  if (uNight > 0.0) {",
     "    float disc = 1.0 - smoothstep(moonR - 1.2, moonR + 1.2, md);",
-    "    vec3 moonCol = vec3(0.92, 0.94, 0.97) * (1.0 - 0.08 * md * md / (moonR * moonR));",
-    "    if (md < moonR * 1.2) moonCol *= 1.0 + moonFace(mo / moonR);",
+    // A real photo of the full moon (NASA LRO), plain white until it loads.
+    "    vec3 photo = texture2D(uMoon, mo / moonR * 0.49 + 0.5).rgb;",
+    "    vec3 moonCol = mix(vec3(0.9, 0.92, 0.96), (0.3 + photo * 1.05) * vec3(0.95, 0.97, 1.0), uMoonReady);",
     "    col = mix(col, moonCol, disc * 0.85 * uNight);",
     "    col += vec3(0.55, 0.68, 0.9) * exp(-md * md / (moonR * moonR * 9.0)) * 0.16 * uNight;",
     "  }",
@@ -279,6 +246,7 @@
   var SLOPE_RANGE = 24; // must match the 48.0 decode (2 * range) in the shader
   var CURVE_RANGE = 3; // must match the 6.0 decode (2 * range) in the shader
   var DROP_SLOTS = 12; // must match uDrops[12] in the shader
+  var MOON_SRC = "assets/img/moon.jpg"; // NASA/GSFC/Arizona State University, public domain
 
   function compile(gl, type, src) {
     var sh = gl.createShader(type);
@@ -316,6 +284,7 @@
     this.nightTarget = 0;
     this.drops = new Float32Array(DROP_SLOTS * 4);
     this.dropNext = 0;
+    this.moonImage = null;
 
     var self = this;
     this._onLost = function (e) {
@@ -327,6 +296,7 @@
       if (self.setup()) {
         self.allocGrid();
         if (self.padSource) self.setPads(self.padSource);
+        if (self.moonImage) self.uploadMoon(self.moonImage);
         if (self.onRestore) self.onRestore();
       }
     };
@@ -352,7 +322,14 @@
     }
     if (!gl) return null;
     var water = new KoiWater(canvas, gl);
-    return water.setup() ? water : null;
+    if (!water.setup()) return null;
+    var moon = new Image();
+    moon.onload = function () {
+      water.moonImage = moon;
+      if (!water.lost) water.uploadMoon(moon);
+    };
+    moon.src = MOON_SRC;
+    return water;
   };
 
   KoiWater.prototype.setup = function () {
@@ -381,17 +358,20 @@
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
     var u = {};
-    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops"].forEach(function (name) {
+    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
     });
     this.u = u;
     gl.uniform1i(u.uFish, 0);
     gl.uniform1i(u.uPads, 1);
     gl.uniform1i(u.uRipple, 2);
+    gl.uniform1i(u.uMoon, 3);
 
     this.fishTex = this.makeTexture(0);
     this.padTex = this.makeTexture(1);
     this.rippleTex = this.makeTexture(2);
+    this.moonTex = this.makeTexture(3);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([230, 233, 240, 255]));
     var empty = new Uint8Array([0, 0, 0, 0]);
     gl.activeTexture(gl.TEXTURE1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, empty);
@@ -600,6 +580,14 @@
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
   };
 
+  // The moon photo is drawn far smaller than it is, so it gets mipmaps to stay smooth.
+  KoiWater.prototype.uploadMoon = function (image) {
+    var gl = this.gl;
+    this.uploadCanvas(3, image);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  };
+
   KoiWater.prototype.setPads = function (padCanvas) {
     this.padSource = padCanvas;
     if (this.lost) return;
@@ -624,6 +612,7 @@
     gl.uniform1f(u.uTime, this.time);
     gl.uniform1f(u.uNight, this.night);
     gl.uniform4fv(u.uDrops, this.drops);
+    gl.uniform1f(u.uMoonReady, this.moonImage ? 1 : 0);
     gl.uniform1f(u.uTop, this.top);
     gl.uniform2f(u.uGrid, this.gw, this.gh);
     gl.uniform1f(u.uCell, this.cell);
@@ -638,6 +627,7 @@
       gl.deleteTexture(this.fishTex);
       gl.deleteTexture(this.padTex);
       gl.deleteTexture(this.rippleTex);
+      gl.deleteTexture(this.moonTex);
       gl.deleteProgram(this.prog);
     }
   };
