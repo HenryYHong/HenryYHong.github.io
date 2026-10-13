@@ -53,6 +53,7 @@
     },
     {
       id: "yamabuki",
+      metallic: true,
       bodyStops: ["#d7ac43", "#ffe8a1", "#e0a534", "#a96f1b"],
       scaleColor: "rgba(92, 58, 20, 0.09)",
       dorsalColor: "rgba(235, 182, 68, 0.66)",
@@ -79,6 +80,7 @@
     },
     {
       id: "platinum",
+      metallic: true,
       bodyStops: ["#ddd8cf", "#fffaf2", "#f2eadf", "#cfc5b7"],
       scaleColor: "rgba(120, 112, 102, 0.065)",
       dorsalColor: "rgba(232, 226, 216, 0.66)",
@@ -92,6 +94,7 @@
     },
     {
       id: "kin",
+      metallic: true,
       bodyStops: ["#c8891f", "#ffd36a", "#d99a28", "#965f16"],
       scaleColor: "rgba(78, 45, 12, 0.085)",
       dorsalColor: "rgba(218, 146, 36, 0.62)",
@@ -119,6 +122,66 @@
   function lerp(a, b, t) {
     return a + (b - a) * t;
   }
+
+  function smoothstep(a, b, x) {
+    var t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+
+  function parseColor(str) {
+    if (str.charAt(0) === "#") {
+      var v = parseInt(str.slice(1), 16);
+      return [(v >> 16) & 255, (v >> 8) & 255, v & 255, 1];
+    }
+    var m = str.match(/[\d.]+/g);
+    return [+m[0], +m[1], +m[2], m[3] != null ? +m[3] : 1];
+  }
+
+  function rgba(c, alpha) {
+    return (
+      "rgba(" + Math.round(c[0]) + ", " + Math.round(c[1]) + ", " + Math.round(c[2]) + ", " +
+      (alpha == null ? c[3] : alpha) + ")"
+    );
+  }
+
+  function mixColor(a, b, t) {
+    return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)];
+  }
+
+  // Deeper fish are seen through more water, so their colors lean toward it.
+  var POND_WATER = [24, 86, 92, 1];
+
+  function tintPalette(palette, amount) {
+    function tint(str) {
+      var c = parseColor(str);
+      var t = mixColor(c, POND_WATER, amount);
+      t[3] = c[3];
+      return rgba(t);
+    }
+    return {
+      id: palette.id,
+      colorGroup: palette.colorGroup,
+      metallic: !!palette.metallic,
+      bodyStops: palette.bodyStops.map(tint),
+      scaleColor: palette.scaleColor,
+      dorsalColor: tint(palette.dorsalColor),
+      finStops: palette.finStops.map(tint),
+      patchRange: palette.patchRange,
+      patchColors: palette.patchColors.map(function (pc) {
+        return { fill: tint(pc.fill), shade: pc.shade };
+      }),
+    };
+  }
+
+  // Cubic Bezier coordinate, for running fin rays out to a fin's edge.
+  function bez(a, b, c, d, t) {
+    var u = 1 - t;
+    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+  }
+
+  // Sunlight comes from the upper left of the screen, matching the water's shadows.
+  var LIGHT_X = -0.6;
+  var LIGHT_Y = -0.8;
 
   function KoiPond(canvas) {
     this.canvas = canvas;
@@ -166,6 +229,9 @@
       };
       return;
     }
+    // Pads don't move, so the flat pond paints them once and copies them each frame.
+    this.padLayer = document.createElement("canvas");
+    this.padCtx = this.padLayer.getContext("2d");
     var ctx = this.canvas.getContext("2d");
     if (!ctx && this.canvas.parentNode) {
       // WebGL started but failed to compile; a canvas keeps its first context, so swap it.
@@ -186,8 +252,9 @@
       return neckW * (0.58 + 0.42 * Math.pow(ht, 0.9));
     }
 
+    // A koi stays full through the middle and narrows late, toward the tail.
     var cone = (t - peakT) / (1 - peakT);
-    return neckW * Math.max(0.025, 1 - cone);
+    return neckW * Math.max(0.06, 1 - 0.5 * cone - 0.44 * Math.pow(cone, 2.2));
   };
 
   KoiPond.prototype.traceIceCreamBody = function (ctx, left, right, cx0, cy0, headAng, hw, n) {
@@ -218,20 +285,50 @@
     ctx.closePath();
   };
 
-  KoiPond.prototype.drawBodyScales = function (ctx, cx, cy, nx, ny, widths, n, hw, scaleColor) {
-    ctx.fillStyle = scaleColor || "rgba(150, 145, 140, 0.07)";
-    for (var i = 2; i < n - 4; i++) {
-      if (i % 2 !== 0) continue;
-      var cols = Math.max(2, Math.floor(widths[i] / 2.8));
-      for (var c = 0; c < cols; c++) {
-        var lateral = ((c + 0.5) / cols - 0.5) * 1.5;
-        var sx = cx[i] + nx[i] * widths[i] * lateral;
-        var sy = cy[i] + ny[i] * widths[i] * lateral;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 0.9 + hw * 0.018, 0, TAU);
-        ctx.fill();
+  // Scales overlap like roof tiles; from above you see the back edge of each one
+  // as a faint arc. They show most along the back and fade toward the flanks,
+  // where the body curves away.
+  KoiPond.prototype.drawBodyScales = function (ctx, cx, cy, nx, ny, widths, n, hw, scaleColor, metallic) {
+    var c = parseColor(scaleColor || "rgba(150, 145, 140, 0.07)");
+    var size = Math.max(1.2, hw * 0.14);
+    var start = Math.round((n - 1) * 0.24);
+    var back = [];
+    var side = [];
+    for (var i = start; i < n - 4; i++) {
+      var dir = Math.atan2(cy[i + 1] - cy[i], cx[i + 1] - cx[i]);
+      var cols = Math.max(2, Math.round((widths[i] * 2) / (size * 1.6)));
+      var stagger = (i % 2) * 0.5;
+      for (var k = 0; k < cols; k++) {
+        var lat = ((k + 0.25 + stagger) / cols - 0.5) * 1.8;
+        if (lat < -0.9 || lat > 0.9) continue;
+        var list = Math.abs(lat) < 0.5 ? back : side;
+        list.push(cx[i] + nx[i] * widths[i] * lat, cy[i] + ny[i] * widths[i] * lat, dir);
       }
     }
+    var strength = Math.min(metallic ? 0.2 : 0.15, c[3] * 2);
+    ctx.lineWidth = Math.max(0.35, hw * 0.026);
+    [back, side].forEach(function (list, li) {
+      ctx.strokeStyle = rgba(c, li === 0 ? strength : strength * 0.5);
+      ctx.beginPath();
+      for (var e = 0; e < list.length; e += 3) {
+        var a0 = list[e + 2] - 1.1;
+        ctx.moveTo(list[e] + Math.cos(a0) * size, list[e + 1] + Math.sin(a0) * size);
+        ctx.arc(list[e], list[e + 1], size, a0, list[e + 2] + 1.1);
+      }
+      ctx.stroke();
+    });
+    if (!metallic) return;
+    // Metallic koi: each scale catches a little light just inside its edge.
+    ctx.strokeStyle = "rgba(255, 250, 228, 0.12)";
+    ctx.beginPath();
+    for (var e = 0; e < back.length; e += 3) {
+      var b0 = back[e + 2] - 0.85;
+      var sx = back[e] - Math.cos(back[e + 2]) * size * 0.35;
+      var sy = back[e + 1] - Math.sin(back[e + 2]) * size * 0.35;
+      ctx.moveTo(sx + Math.cos(b0) * size, sy + Math.sin(b0) * size);
+      ctx.arc(sx, sy, size, b0, back[e + 2] + 0.85);
+    }
+    ctx.stroke();
   };
 
   KoiPond.prototype.resize = function () {
@@ -275,68 +372,119 @@
       this.canvas.width = Math.floor(w * dpr);
       this.canvas.height = Math.floor(h * dpr);
       this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (this.padCtx) {
+        this.padLayer.width = this.canvas.width;
+        this.padLayer.height = this.canvas.height;
+        this.padCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.paintPads();
+      }
     }
   };
 
   KoiPond.prototype.paintPads = function () {
-    if (!this.water) return;
     var ctx = this.padCtx;
+    if (!ctx) return;
     ctx.clearRect(0, 0, this.w, this.h);
     this.lilyPads.forEach(function (pad) {
       this.drawLilyPad(pad, ctx);
     }, this);
-    this.water.setPads(this.padLayer);
+    if (this.water) this.water.setPads(this.padLayer);
   };
 
   // y is measured within the water below the nav, not the whole masthead.
+  // Young leaves come up against an older one: `parent` and `at` (an angle) place them.
+  // lotusSide is the direction from the pad to its flower.
   var PAD_SPOTS = [
-    { x: 0.07, y: 0.72, scale: 0.95, flipped: false, lotus: true, lotusColor: "pink", lotusSide: -Math.PI * 0.42 },
-    { x: 0.2, y: 0.14, scale: 1.05, flipped: true, lotus: false },
-    { x: 0.84, y: 0.16, scale: 0.9, flipped: false, lotus: true, lotusColor: "white", lotusSide: Math.PI * 0.92 },
-    { x: 0.92, y: 0.72, scale: 1.0, flipped: true, lotus: false },
-    { x: 0.1, y: 0.36, scale: 0.72, flipped: true, lotus: false },
-    { x: 0.9, y: 0.44, scale: 0.78, flipped: false, lotus: true, lotusColor: "pink", lotusSide: Math.PI * 0.08 },
-    { x: 0.58, y: 0.86, scale: 0.68, flipped: true, lotus: false },
-    { x: 0.35, y: 0.1, scale: 0.62, flipped: false, lotus: true, lotusColor: "white", lotusSide: -Math.PI * 0.18 },
+    { x: 0.07, y: 0.72, scale: 0.95, lotus: true, lotusColor: "pink", lotusSide: -Math.PI * 0.42 },
+    { x: 0.2, y: 0.14, scale: 1.05, flipped: true },
+    { x: 0.84, y: 0.16, scale: 0.9, lotus: true, lotusColor: "white", lotusSide: Math.PI * 0.92 },
+    { x: 0.92, y: 0.72, scale: 1.0, flipped: true, kind: "aged" },
+    { x: 0.1, y: 0.36, scale: 0.72, flipped: true },
+    { x: 0.9, y: 0.44, scale: 0.78, lotus: true, lotusColor: "pink", lotusSide: Math.PI * 0.08 },
+    { x: 0.58, y: 0.86, scale: 0.68, flipped: true, kind: "aged" },
+    { x: 0.35, y: 0.1, scale: 0.62, lotus: true, lotusColor: "white", lotusSide: -Math.PI * 0.18 },
+    { parent: 0, at: Math.PI * 0.3, scale: 0.42, kind: "young" },
+    { parent: 1, at: Math.PI * 0.2, scale: 0.44, kind: "young" },
+    { parent: 3, at: -Math.PI * 0.7, scale: 0.46, kind: "young" },
+    { parent: 2, at: -Math.PI * 0.15, scale: 0.4, kind: "young" },
   ];
 
   KoiPond.prototype.placePad = function (pad, spot) {
-    pad.x = spot.x * this.w;
-    pad.y = this.top + spot.y * (this.h - this.top);
     // Seen from straight above, pads are close to round. Phones get smaller pads
-    // so eight of them don't crowd the water.
-    var size = spot.scale * Math.max(0.7, Math.min(1, this.w / 900));
+    // so they don't crowd the water. Sizes go in steps so dragging the window
+    // narrower doesn't redraw the pad textures on every pixel.
+    var fit = Math.round(Math.max(0.7, Math.min(1, this.w / 900)) * 20) / 20;
+    var size = spot.scale * fit;
     pad.rx = 28 * size;
     pad.ry = 26.5 * size;
+    var parent = spot.parent != null ? this.lilyPads[spot.parent] : null;
+    if (parent) {
+      var reach = (parent.rx + pad.rx) * 0.92;
+      pad.x = parent.x + Math.cos(spot.at) * reach;
+      pad.y = parent.y + Math.sin(spot.at) * reach;
+    } else {
+      pad.x = spot.x * this.w;
+      pad.y = this.top + spot.y * (this.h - this.top);
+    }
     this.updateLotusOffset(pad);
   };
 
   KoiPond.prototype.seedLilyPads = function () {
-    this.lilyPads = PAD_SPOTS.map(function (s, i) {
+    this.lilyPads = [];
+    PAD_SPOTS.forEach(function (s) {
+      var kind = s.kind || "mature";
       var pad = {
-        rot: rand(-0.35, 0.35),
+        rot: rand(0, TAU),
         flipped: !!s.flipped,
         hasLotus: !!s.lotus,
         lotusColor: s.lotusColor || "pink",
         lotusSide: s.lotusSide != null ? s.lotusSide : rand(-Math.PI * 0.85, -Math.PI * 0.15),
         phase: rand(0, TAU),
-        notch: rand(0.16, 0.24),
+        kind: kind,
+        seed: randInt(1, 1000000),
+        notch: rand(0.025, 0.06),
         wobA: rand(0.012, 0.03),
         wobB: rand(0.006, 0.016),
         wobP: rand(0, TAU),
-        aged: i === 3 || i === 6,
+        veins: randInt(18, 24),
+        redRim: kind === "young" ? 0.8 : rand(0.15, 0.6),
+        bites: [],
+        spots: [],
+        drops: [],
       };
+      var k;
+      var ang;
+      var dist;
+      // Angles stay clear of the slit, which runs along angle 0.
+      if (kind === "aged" || Math.random() < 0.25) {
+        for (k = kind === "aged" ? randInt(1, 2) : 1; k > 0; k--) {
+          pad.bites.push({ a: rand(0.8, TAU - 0.8), w: rand(0.1, 0.2), d: rand(0.05, 0.1) });
+        }
+      }
+      if (kind === "aged") {
+        for (k = randInt(2, 4); k > 0; k--) {
+          ang = rand(0.5, TAU - 0.5);
+          dist = rand(0.3, 0.8);
+          pad.spots.push({ x: Math.cos(ang) * dist, y: Math.sin(ang) * dist, r: rand(0.05, 0.11) });
+        }
+      }
+      if (kind !== "young") {
+        for (k = randInt(0, 3); k > 0; k--) {
+          ang = rand(0.6, TAU - 0.6);
+          dist = rand(0.2, 0.75);
+          pad.drops.push({ x: Math.cos(ang) * dist, y: Math.sin(ang) * dist, r: rand(0.7, 1.4) });
+        }
+      }
+      if (pad.hasLotus) pad.bloom = makeBloom();
+      this.lilyPads.push(pad);
       this.placePad(pad, s);
-      return pad;
     }, this);
   };
 
   KoiPond.prototype.updateLotusOffset = function (pad) {
     if (!pad.hasLotus) return;
-    var angle = pad.lotusSide;
-    var dist = 1.12;
-    pad.lotusOffsetX = Math.cos(angle) * pad.rx * dist;
-    pad.lotusOffsetY = Math.sin(angle) * pad.ry * dist;
+    pad.lotusOffsetX = Math.cos(pad.lotusSide) * pad.rx * 1.12;
+    pad.lotusOffsetY = Math.sin(pad.lotusSide) * pad.ry * 1.12;
   };
 
   KoiPond.prototype.repositionLilyPads = function () {
@@ -439,6 +587,9 @@
     var heading = preset.angle;
     var segments = [];
     var palette = preset.palette || this.createKoiPalette();
+    // depth 1 swims just under the surface; depth 0 is down near the floor.
+    var depth = rand(0, 1);
+    var look = tintPalette(palette, (1 - depth) * 0.2);
 
     for (var i = 0; i < segCount; i++) {
       segments.push({
@@ -462,9 +613,11 @@
       wanderSpeed: rand(0.004, 0.008),
       turnTarget: heading,
       nextTurnAt: rand(1200, 3600),
-      depth: rand(0, 1),
+      depth: depth,
       palette: palette,
-      patches: this.createKoiPatches(palette),
+      look: look,
+      bodyRGB: look.bodyStops.map(parseColor),
+      patches: this.createKoiPatches(look),
     };
   };
 
@@ -537,9 +690,10 @@
     }
 
     if (this.water) {
-      this.water.disturb(x, y, 9, 4);
-      for (var s = 0; s < count; s += 3) {
-        this.water.disturb(x + rand(-12, 12), y + rand(-8, 8), 5, 1.4);
+      // Each pellet lands with its own little plop.
+      for (var s = this.foodPellets.length - count; s < this.foodPellets.length; s += 2) {
+        var landed = this.foodPellets[s];
+        this.water.disturb(landed.x, landed.y, 3, rand(0.35, 0.6));
       }
       return;
     }
@@ -570,19 +724,32 @@
     this.foodPellets.forEach(function (pellet) {
       var fade = Math.max(0, Math.min(1, 1 - pellet.age / pellet.life));
       var bob = Math.sin(now * 0.004 + pellet.phase) * 0.35;
+      var x = pellet.x;
+      var y = pellet.y + bob;
+      var r = pellet.r;
 
-      ctx.globalAlpha = 0.5 + fade * 0.45;
-      ctx.fillStyle = "#efbd62";
-      ctx.beginPath();
-      ctx.arc(pellet.x, pellet.y + bob, pellet.r, 0, TAU);
-      ctx.fill();
-
-      ctx.globalAlpha = 0.25 + fade * 0.2;
-      ctx.strokeStyle = "rgba(94, 58, 18, 0.48)";
+      // Floating pellets: small lit spheres with a bright ring of water around them.
+      ctx.globalAlpha = 0.25 + fade * 0.25;
+      ctx.strokeStyle = "rgba(214, 244, 238, 0.7)";
       ctx.lineWidth = 0.6;
       ctx.beginPath();
-      ctx.arc(pellet.x, pellet.y + bob, pellet.r + 0.8, 0, TAU);
+      ctx.arc(x, y, r + 0.7, 0, TAU);
       ctx.stroke();
+
+      ctx.globalAlpha = 0.6 + fade * 0.4;
+      var g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+      g.addColorStop(0, "#e9bd7c");
+      g.addColorStop(0.55, "#b8793a");
+      g.addColorStop(1, "#77461d");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, TAU);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(255, 246, 222, 0.75)";
+      ctx.beginPath();
+      ctx.arc(x - r * 0.38, y - r * 0.42, r * 0.26, 0, TAU);
+      ctx.fill();
     });
     ctx.restore();
   };
@@ -760,7 +927,7 @@
     if (foodTarget && foodDistSq < Math.pow(Math.max(8, fish.headWidth * 0.9), 2)) {
       this.foodPellets.splice(foodTargetIndex, 1);
       if (this.water) {
-        this.water.disturb(foodTarget.x, foodTarget.y, 5.5, 1.1);
+        this.water.disturb(foodTarget.x, foodTarget.y, 3.5, 0.45);
       } else {
         this.ripples.push({
           x: foodTarget.x,
@@ -772,13 +939,13 @@
       }
     }
 
-    // Fish near the surface push a faint bow wave ahead of them.
-    if (this.water && fish.depth < 0.7) {
+    // Fish near the surface (depth toward 1) push a faint bow wave ahead of them.
+    if (this.water && fish.depth > 0.3) {
       this.water.disturb(
         fish.x + Math.cos(fish.heading) * fish.headWidth * 0.3,
         fish.y + Math.sin(fish.heading) * fish.headWidth * 0.3,
         fish.headWidth * 0.55,
-        0.012 * (1 - fish.depth) * frameScale
+        0.02 * fish.depth * frameScale
       );
     }
 
@@ -799,7 +966,7 @@
 
     if (Math.random() < 0.001 * frameScale) {
       if (this.water) {
-        this.water.disturb(fish.x, fish.y, 5.5, 0.8);
+        this.water.disturb(fish.x, fish.y, 3.5, 0.35);
         return;
       }
       this.ripples.push({
@@ -846,6 +1013,58 @@
     return { cx: cx, cy: cy, nx: nx, ny: ny, widths: widths, n: n };
   };
 
+  // Light across the body, one slice at a time so it follows the bend: bright
+  // along the back, a little toward the sun. Every slice uses the same span, so
+  // neighbors match where they meet. The edges are darkened separately.
+  var WHITE = [255, 255, 255, 1];
+
+  KoiPond.prototype.shadeBody = function (ctx, geom, rgb, hw, metallic) {
+    var cx = geom.cx;
+    var cy = geom.cy;
+    var nx = geom.nx;
+    var ny = geom.ny;
+    var widths = geom.widths;
+    var span = hw * 1.05;
+    var shine = rgba(mixColor(rgb[1], WHITE, metallic ? 0.32 : 0.07));
+    for (var i = 0; i < geom.n - 1; i++) {
+      var w = Math.max(widths[i], widths[i + 1]) * 1.25 + 1;
+      var dx = cx[i + 1] - cx[i];
+      var dy = cy[i + 1] - cy[i];
+      var len = Math.sqrt(dx * dx + dy * dy) || 1;
+      var ux = dx / len;
+      var uy = dy / len;
+      var ahead = i === 0 ? hw * 0.7 : 0.6;
+      var x0 = cx[i] - ux * ahead;
+      var y0 = cy[i] - uy * ahead;
+      var x1 = cx[i + 1] + ux * 0.8;
+      var y1 = cy[i + 1] + uy * 0.8;
+      var mx = nx[i] + nx[i + 1];
+      var my = ny[i] + ny[i + 1];
+      var ml = Math.sqrt(mx * mx + my * my) || 1;
+      mx /= ml;
+      my /= ml;
+      var gx = (cx[i] + cx[i + 1]) * 0.5;
+      var gy = (cy[i] + cy[i + 1]) * 0.5;
+      // Positive when the +n flank faces the sun.
+      var ld = mx * LIGHT_X + my * LIGHT_Y;
+      var mid = 0.5 + 0.1 * ld;
+      var g = ctx.createLinearGradient(gx - mx * span, gy - my * span, gx + mx * span, gy + my * span);
+      g.addColorStop(0, rgba(mixColor(rgb[2], rgb[0], Math.max(0, -ld) * 0.6)));
+      g.addColorStop(mid - 0.22, rgba(rgb[1]));
+      g.addColorStop(mid, shine);
+      g.addColorStop(mid + 0.22, rgba(rgb[1]));
+      g.addColorStop(1, rgba(mixColor(rgb[2], rgb[0], Math.max(0, ld) * 0.6)));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x0 - nx[i] * w, y0 - ny[i] * w);
+      ctx.lineTo(x1 - nx[i + 1] * w, y1 - ny[i + 1] * w);
+      ctx.lineTo(x1 + nx[i + 1] * w, y1 + ny[i + 1] * w);
+      ctx.lineTo(x0 + nx[i] * w, y0 + ny[i] * w);
+      ctx.closePath();
+      ctx.fill();
+    }
+  };
+
   KoiPond.prototype.drawKoi = function (fish) {
     var ctx = this.ctx;
     ctx.save();
@@ -860,21 +1079,27 @@
     var hw = fish.headWidth;
     var swim = fish.swimPhase;
     var depth = fish.depth == null ? 0.5 : fish.depth;
-    var palette = fish.palette || {};
+    var palette = fish.look || fish.palette || {};
     var bodyStops = palette.bodyStops || ["#ede8e0", "#fffefb", "#faf7f2", "#e8e2d8"];
+    var bodyRGB = fish.bodyRGB || bodyStops.map(parseColor);
     var finStops = palette.finStops || [
       "rgba(248, 249, 252, 0.92)",
       "rgba(225, 232, 240, 0.78)",
       "rgba(200, 210, 220, 0.4)",
     ];
     var idx;
+    var ray;
     var headAng = Math.atan2(cy[0] - cy[1], cx[0] - cx[1]);
+    var self = this;
 
     var left = [];
     var right = [];
     for (idx = 0; idx < n; idx++) {
       left.push({ x: cx[idx] - nx[idx] * widths[idx], y: cy[idx] - ny[idx] * widths[idx] });
       right.push({ x: cx[idx] + nx[idx] * widths[idx], y: cy[idx] + ny[idx] * widths[idx] });
+    }
+    function traceBody() {
+      self.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
     }
 
     // The water shader casts a soft shadow on the pond floor instead.
@@ -883,7 +1108,7 @@
       ctx.save();
       ctx.translate(1.4 + depth * 1.2, 2.2 + depth * 1.3);
       ctx.beginPath();
-      this.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
+      traceBody();
       ctx.fill();
       ctx.restore();
     }
@@ -908,10 +1133,27 @@
     var tailScale = Math.max(0.65, 0.5 + widthRatio * 0.5);
     var lobeLen = hw * 2.75 * tailScale;
     var lobeW = hw * 0.68 * tailScale;
+    var rayWidth = Math.max(0.35, hw * 0.027);
 
     ctx.save();
     ctx.translate(tx, ty);
     ctx.rotate(tailAng + tailSway);
+    // The tail is one fin forked in two, so a thin web joins the lobes near the base.
+    var spreadA = spreadAngle + tailSpread;
+    var webD = lobeLen * 0.6;
+    var webOff = lobeW * 0.22;
+    var upX = webD * Math.cos(spreadA) - webOff * Math.sin(spreadA);
+    var upY = -(webD * Math.sin(spreadA) + webOff * Math.cos(spreadA));
+    var wg = ctx.createLinearGradient(0, 0, webD, 0);
+    wg.addColorStop(0, finStops[0]);
+    wg.addColorStop(1, finStops[2]);
+    ctx.fillStyle = wg;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(upX, upY);
+    ctx.quadraticCurveTo(lobeLen * 0.3, 0, upX, -upY);
+    ctx.closePath();
+    ctx.fill();
     for (var side = -1; side <= 1; side += 2) {
       ctx.save();
       ctx.rotate(side * (spreadAngle + tailSpread));
@@ -939,6 +1181,18 @@
         0
       );
       ctx.fill();
+      // Fin rays run from the base out to the trailing edge.
+      ctx.strokeStyle = "rgba(255, 250, 240, 0.2)";
+      ctx.lineWidth = rayWidth;
+      ctx.beginPath();
+      for (ray = 0; ray < 6; ray++) {
+        var q = 0.4 + ray * 0.12;
+        var rx = bez(0, lobeLen * 0.2, lobeLen * 0.62, lobeLen, q) * 0.93;
+        var ry = side * bez(0, lobeW * 0.1, lobeW * 0.98, lobeW * 0.14, q) * 0.93;
+        ctx.moveTo(lobeLen * 0.05, 0);
+        ctx.quadraticCurveTo(rx * 0.55, ry * 0.4, rx, ry);
+      }
+      ctx.stroke();
       ctx.restore();
     }
     ctx.restore();
@@ -959,88 +1213,7 @@
       ctx.restore();
     }
 
-    var bodyGrad = ctx.createLinearGradient(
-      cx[0] - nx[0] * hw * 0.5,
-      cy[0] - ny[0] * hw * 0.5,
-      cx[0] + nx[0] * hw * 0.5,
-      cy[0] + ny[0] * hw * 0.5
-    );
-    bodyGrad.addColorStop(0, bodyStops[0]);
-    bodyGrad.addColorStop(0.35, bodyStops[1]);
-    bodyGrad.addColorStop(0.65, bodyStops[2]);
-    bodyGrad.addColorStop(1, bodyStops[3]);
-    ctx.fillStyle = bodyGrad;
-    ctx.beginPath();
-    this.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
-    ctx.fill();
-
-    ctx.save();
-    try {
-      ctx.beginPath();
-      this.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
-      ctx.clip();
-      this.drawBodyScales(ctx, cx, cy, nx, ny, widths, n, hw, palette.scaleColor);
-
-      (fish.patches || []).forEach(function (patch) {
-      var pIdx = Math.min(n - 2, Math.max(1, Math.round(patch.t * (n - 1))));
-      var dorsalShift = -0.32;
-      var px = cx[pIdx] + nx[pIdx] * hw * (dorsalShift + patch.offset);
-      var py = cy[pIdx] + ny[pIdx] * hw * (dorsalShift + patch.offset);
-      var prx = hw * patch.rx;
-      var pry = hw * patch.ry;
-      var patchAng = Math.atan2(cy[pIdx] - cy[pIdx + 1], cx[pIdx] - cx[pIdx + 1]);
-
-      ctx.save();
-      ctx.translate(px, py);
-      ctx.rotate(patchAng);
-      var patchColor = patch.color || {
-        fill: "#b9462f",
-        shade: "rgba(120, 34, 24, 0.16)",
-      };
-      ctx.globalAlpha = patch.deep ? 0.94 : 0.88;
-      ctx.fillStyle = patchColor.fill;
-      ctx.beginPath();
-      if (patch.points && patch.points.length > 2) {
-        ctx.save();
-        ctx.rotate(patch.rot || 0);
-        var first = patch.points[0];
-        ctx.moveTo(first.x * prx, first.y * pry);
-        for (var p = 1; p <= patch.points.length; p++) {
-          var curr = patch.points[p % patch.points.length];
-          var prev = patch.points[(p - 1) % patch.points.length];
-          ctx.quadraticCurveTo(
-            prev.x * prx,
-            prev.y * pry,
-            ((prev.x + curr.x) * 0.5) * prx,
-            ((prev.y + curr.y) * 0.5) * pry
-          );
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      } else {
-        ctx.ellipse(0, 0, prx, pry, patch.rot || 0, 0, TAU);
-        ctx.fill();
-      }
-
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = patchColor.shade;
-      ctx.beginPath();
-      ctx.ellipse(prx * -0.08, pry * 0.08, prx * 0.58, pry * 0.46, patch.rot || 0, 0, TAU);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.restore();
-    });
-    } finally {
-      ctx.restore();
-    }
-
-    ctx.strokeStyle = "rgba(50, 60, 68, 0.1)";
-    ctx.lineWidth = 0.75;
-    ctx.beginPath();
-    this.traceIceCreamBody(ctx, left, right, cx[0], cy[0], headAng, hw, n);
-    ctx.stroke();
-
+    // Pectoral fins hang below the body, so the body overlaps their roots.
     var pecIdx = peakIdx;
     var bodyAng = Math.atan2(cy[pecIdx + 1] - cy[pecIdx], cx[pecIdx + 1] - cx[pecIdx]);
     var pecSides = [
@@ -1080,25 +1253,200 @@
       );
       ctx.closePath();
       ctx.fill();
+      ctx.strokeStyle = "rgba(255, 252, 245, 0.2)";
+      ctx.lineWidth = rayWidth;
+      ctx.beginPath();
+      for (var pr = 0; pr < 6; pr++) {
+        var pq = 0.32 + pr * 0.13;
+        ctx.moveTo(finLen * 0.04, 0);
+        ctx.lineTo(
+          bez(0, finLen * 0.22, finLen * 0.58, finLen * 0.88, pq) * 0.92,
+          side.lateral * bez(0, finSpan * 0.55, finSpan, finSpan * 0.35, pq) * 0.92
+        );
+      }
+      ctx.stroke();
+      // The leading edge is a thicker ray that catches the light.
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.26)";
+      ctx.lineWidth = Math.max(0.45, hw * 0.04);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(
+        finLen * 0.22,
+        side.lateral * finSpan * 0.55,
+        finLen * 0.58,
+        side.lateral * finSpan,
+        finLen * 0.88,
+        side.lateral * finSpan * 0.35
+      );
+      ctx.stroke();
       ctx.restore();
     });
 
-    ctx.strokeStyle = palette.dorsalColor || "rgba(230, 236, 242, 0.72)";
-    ctx.lineWidth = Math.max(0.9, hw * 0.08);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+    ctx.fillStyle = bodyStops[2];
     ctx.beginPath();
-    ctx.moveTo(cx[4], cy[4]);
-    for (idx = 5; idx < n - 6; idx++) {
-      ctx.lineTo(cx[idx], cy[idx]);
+    traceBody();
+    ctx.fill();
+
+    ctx.save();
+    try {
+      ctx.beginPath();
+      traceBody();
+      ctx.clip();
+      this.shadeBody(ctx, geom, bodyRGB, hw, palette.metallic);
+
+      (fish.patches || []).forEach(function (patch) {
+      var pIdx = Math.min(n - 2, Math.max(1, Math.round(patch.t * (n - 1))));
+      var dorsalShift = -0.32;
+      var px = cx[pIdx] + nx[pIdx] * hw * (dorsalShift + patch.offset);
+      var py = cy[pIdx] + ny[pIdx] * hw * (dorsalShift + patch.offset);
+      var prx = hw * patch.rx;
+      var pry = hw * patch.ry;
+      var patchAng = Math.atan2(cy[pIdx] - cy[pIdx + 1], cx[pIdx] - cx[pIdx + 1]);
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(patchAng);
+      var patchColor = patch.color || {
+        fill: "#b9462f",
+        shade: "rgba(120, 34, 24, 0.16)",
+      };
+      var prgb = patch.rgb || (patch.rgb = parseColor(patchColor.fill));
+      var hasPoints = patch.points && patch.points.length > 2;
+      // Shade the patch across the body like the skin under it. The gradient is
+      // built in the patch's own rotated frame.
+      var turn = patchAng + (hasPoints ? patch.rot || 0 : 0);
+      var pcos = Math.cos(turn);
+      var psin = Math.sin(turn);
+      var pw = widths[pIdx];
+      var ax = cx[pIdx] - nx[pIdx] * pw - px;
+      var ay = cy[pIdx] - ny[pIdx] * pw - py;
+      var bx = cx[pIdx] + nx[pIdx] * pw - px;
+      var by = cy[pIdx] + ny[pIdx] * pw - py;
+      var pld = nx[pIdx] * LIGHT_X + ny[pIdx] * LIGHT_Y;
+      var pg = ctx.createLinearGradient(
+        ax * pcos + ay * psin,
+        -ax * psin + ay * pcos,
+        bx * pcos + by * psin,
+        -bx * psin + by * pcos
+      );
+      var plit = [prgb[0] * 0.9, prgb[1] * 0.9, prgb[2] * 0.9, 1];
+      pg.addColorStop(0, rgba(plit));
+      pg.addColorStop(0.5 + 0.1 * pld, rgba(mixColor(prgb, WHITE, 0.08)));
+      pg.addColorStop(1, rgba(plit));
+
+      ctx.globalAlpha = patch.deep ? 0.94 : 0.88;
+      ctx.fillStyle = pg;
+      ctx.beginPath();
+      if (hasPoints) {
+        ctx.save();
+        ctx.rotate(patch.rot || 0);
+        var first = patch.points[0];
+        ctx.moveTo(first.x * prx, first.y * pry);
+        for (var p = 1; p <= patch.points.length; p++) {
+          var curr = patch.points[p % patch.points.length];
+          var prev = patch.points[(p - 1) % patch.points.length];
+          ctx.quadraticCurveTo(
+            prev.x * prx,
+            prev.y * pry,
+            ((prev.x + curr.x) * 0.5) * prx,
+            ((prev.y + curr.y) * 0.5) * pry
+          );
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.ellipse(0, 0, prx, pry, patch.rot || 0, 0, TAU);
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = patchColor.shade;
+      ctx.beginPath();
+      ctx.ellipse(prx * -0.08, pry * 0.08, prx * 0.58, pry * 0.46, patch.rot || 0, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    });
+
+      this.drawBodyScales(ctx, cx, cy, nx, ny, widths, n, hw, palette.scaleColor, palette.metallic);
+
+      // The body rounds away from view at its edges. A blurred shadow cast inward
+      // from a frame around the fish darkens them evenly, patches included.
+      var minX = Infinity;
+      var minY = Infinity;
+      var maxX = -Infinity;
+      var maxY = -Infinity;
+      for (idx = 0; idx < n; idx++) {
+        minX = Math.min(minX, left[idx].x, right[idx].x);
+        minY = Math.min(minY, left[idx].y, right[idx].y);
+        maxX = Math.max(maxX, left[idx].x, right[idx].x);
+        maxY = Math.max(maxY, left[idx].y, right[idx].y);
+      }
+      var pad = hw * 1.5;
+      ctx.globalCompositeOperation = "multiply";
+      ctx.shadowColor = rgba(bodyRGB[3], 0.75);
+      ctx.shadowBlur = hw * 0.5 * (this.dpr || 1);
+      ctx.fillStyle = rgba(bodyRGB[3], 1);
+      ctx.beginPath();
+      ctx.rect(minX - pad, minY - pad, maxX - minX + pad * 2, maxY - minY + pad * 2);
+      traceBody();
+      ctx.fill("evenodd");
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.globalCompositeOperation = "source-over";
+
+      // The smooth head ends at the gill covers, an arch across the nape.
+      var gi = Math.max(3, Math.round((n - 1) * 0.17));
+      ctx.lineWidth = Math.max(0.5, hw * 0.04);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+      ctx.beginPath();
+      ctx.moveTo(left[gi].x, left[gi].y);
+      ctx.quadraticCurveTo(cx[gi + 1], cy[gi + 1], right[gi].x, right[gi].y);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(48, 34, 22, 0.13)";
+      ctx.beginPath();
+      ctx.moveTo(left[gi].x, left[gi].y);
+      ctx.quadraticCurveTo(cx[gi + 2], cy[gi + 2], right[gi].x, right[gi].y);
+      ctx.stroke();
+    } finally {
+      ctx.restore();
     }
+
+    ctx.strokeStyle = "rgba(50, 60, 68, 0.1)";
+    ctx.lineWidth = 0.75;
+    ctx.beginPath();
+    traceBody();
     ctx.stroke();
+
+    // Dorsal fin: a thin fin standing up along the back, leaning with each stroke.
+    var d0 = 5;
+    var d1 = n - 7;
+    var lean = Math.sin(swim * 0.45 - 0.9) * hw * 0.05;
+    var finL = [];
+    var finR = [];
+    for (idx = d0; idx <= d1; idx++) {
+      var along = (idx - d0) / (d1 - d0);
+      var dw = hw * 0.07 * (1 - 0.72 * along) * smoothstep(0, 0.12, along);
+      var off = lean * along;
+      finL.push(cx[idx] + nx[idx] * (off - dw), cy[idx] + ny[idx] * (off - dw));
+      finR.push(cx[idx] + nx[idx] * (off + dw), cy[idx] + ny[idx] * (off + dw));
+    }
+    ctx.fillStyle = palette.dorsalColor || "rgba(230, 236, 242, 0.72)";
+    ctx.beginPath();
+    ctx.moveTo(finL[0], finL[1]);
+    for (idx = 2; idx < finL.length; idx += 2) ctx.lineTo(finL[idx], finL[idx + 1]);
+    for (idx = finR.length - 2; idx >= 0; idx -= 2) ctx.lineTo(finR[idx], finR[idx + 1]);
+    ctx.closePath();
+    ctx.fill();
 
     ctx.strokeStyle = "rgba(55, 48, 38, 0.16)";
     ctx.lineWidth = Math.max(0.45, hw * 0.028);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.beginPath();
-    ctx.moveTo(cx[5], cy[5]);
-    for (idx = 6; idx < n - 8; idx++) {
+    ctx.moveTo(cx[d0], cy[d0]);
+    for (idx = d0 + 1; idx < n - 8; idx++) {
       ctx.lineTo(cx[idx], cy[idx]);
     }
     ctx.stroke();
@@ -1127,13 +1475,18 @@
       },
     ];
 
-    ctx.fillStyle = "#1c2226";
+    // A bronze iris around a black pupil.
     eyePositions.forEach(function (eye) {
+      ctx.fillStyle = "rgba(146, 122, 86, 0.95)";
       ctx.beginPath();
       ctx.arc(eye.x, eye.y, eyeR, 0, TAU);
       ctx.fill();
+      ctx.fillStyle = "#111517";
+      ctx.beginPath();
+      ctx.arc(eye.x, eye.y, eyeR * 0.68, 0, TAU);
+      ctx.fill();
     });
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
     eyePositions.forEach(function (eye, i) {
       var dorsalX = -ny[eyeIdx] * hw * 0.012 * (i === 0 ? 1 : -1);
       var dorsalY = nx[eyeIdx] * hw * 0.012 * (i === 0 ? 1 : -1);
@@ -1144,6 +1497,17 @@
 
     var whiskerFwdX = Math.cos(headAng);
     var whiskerFwdY = Math.sin(headAng);
+
+    // Nostrils, between the eyes and the snout.
+    var noseX = cx[0] + whiskerFwdX * hw * 0.16;
+    var noseY = cy[0] + whiskerFwdY * hw * 0.16;
+    ctx.fillStyle = "rgba(42, 30, 22, 0.3)";
+    for (var ns = -1; ns <= 1; ns += 2) {
+      ctx.beginPath();
+      ctx.arc(noseX + nx[0] * hw * 0.17 * ns, noseY + ny[0] * hw * 0.17 * ns, Math.max(0.4, hw * 0.032), 0, TAU);
+      ctx.fill();
+    }
+
     var snoutTipX = cx[0] + whiskerFwdX * hw * 0.38;
     var snoutTipY = cy[0] + whiskerFwdY * hw * 0.38;
     var whiskerLen = hw * 0.2;
@@ -1158,8 +1522,9 @@
       },
     ];
 
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
-    ctx.lineWidth = 0.7;
+    // Barbels are skin colored, not white.
+    ctx.strokeStyle = "rgba(236, 214, 188, 0.62)";
+    ctx.lineWidth = 0.65;
     ctx.lineCap = "round";
     whiskerBases.forEach(function (base) {
       var u = 1 - base.t;
@@ -1187,6 +1552,7 @@
       console.error("drawKoi error", err);
     } finally {
       ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
       ctx.restore();
     }
   };
@@ -1237,234 +1603,490 @@
     });
   };
 
-  // Pad outline: close to a circle, with a V cut in to the stem and an uneven edge.
-  function tracePad(ctx, pad, inset) {
-    var steps = 72;
-    var span = TAU - 2 * pad.notch;
-    ctx.moveTo(pad.rx * 0.05, 0);
-    for (var s = 0; s <= steps; s++) {
-      var a = pad.notch + (span * s) / steps;
-      var wob =
-        1 +
-        pad.wobA * Math.sin(3 * a + pad.wobP) +
-        pad.wobB * Math.sin(7 * a + pad.wobP * 1.7);
-      ctx.lineTo(Math.cos(a) * (pad.rx * wob - inset), Math.sin(a) * (pad.ry * wob - inset));
-    }
-    ctx.closePath();
+  // Seeded value noise for the lily pad textures, so a pad keeps its look across resizes.
+  function hash2(x, y, seed) {
+    var h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(seed | 0, 1442695041);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
   }
 
+  function vnoise(x, y, seed) {
+    var ix = Math.floor(x);
+    var iy = Math.floor(y);
+    var fx = x - ix;
+    var fy = y - iy;
+    var ux = fx * fx * (3 - 2 * fx);
+    var uy = fy * fy * (3 - 2 * fy);
+    var a = hash2(ix, iy, seed);
+    var b = hash2(ix + 1, iy, seed);
+    var c = hash2(ix, iy + 1, seed);
+    var d = hash2(ix + 1, iy + 1, seed);
+    return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+  }
+
+  function fbm2(x, y, seed) {
+    return (
+      vnoise(x, y, seed) * 0.5 +
+      vnoise(x * 2.03 + 7.1, y * 2.03 + 3.3, seed) * 0.3 +
+      vnoise(x * 4.1 + 1.7, y * 4.1 + 9.2, seed) * 0.2
+    );
+  }
+
+  // Leaf colors, 0 to 1. Young leaves come up bronze-red and green as they open;
+  // old ones yellow at the edges and pick up brown spots.
+  var PAD_TONES = {
+    mature: { dark: [0.15, 0.3, 0.11], mid: [0.3, 0.5, 0.17], vein: [0.5, 0.66, 0.3], rim: [0.36, 0.2, 0.15] },
+    young: { dark: [0.36, 0.15, 0.13], mid: [0.33, 0.44, 0.16], vein: [0.52, 0.56, 0.3], rim: [0.5, 0.14, 0.15] },
+    aged: { dark: [0.25, 0.37, 0.12], mid: [0.47, 0.55, 0.2], vein: [0.62, 0.68, 0.34], rim: [0.48, 0.34, 0.13] },
+  };
+
+  function unit3(x, y, z) {
+    var m = Math.sqrt(x * x + y * y + z * z);
+    return [x / m, y / m, z / m];
+  }
+
+  var PAD_SUN = unit3(LIGHT_X, LIGHT_Y, 1.9);
+  var PAD_HALF = unit3(PAD_SUN[0], PAD_SUN[1], PAD_SUN[2] + 1);
+
+  // A lily pad drawn pixel by pixel: a round leaf with a narrow slit to the stem,
+  // a slightly wavy rim that curls up, branching veins, a waxy surface that
+  // catches the sun on every bump, and now and then a bead of water or an old bite.
+  function renderPadSprite(pad, dpr) {
+    var rx = pad.rx;
+    var ry = pad.ry;
+    var Rn = (rx + ry) * 0.5;
+    var reach = Math.max(rx, ry) * (1.06 + pad.wobA + pad.wobB);
+    var S = Math.ceil(reach * 2 * dpr) + 4;
+    var canvas = document.createElement("canvas");
+    canvas.width = S;
+    canvas.height = S;
+    var cctx = canvas.getContext("2d");
+    if (!cctx) return canvas;
+    var img = cctx.createImageData(S, S);
+    var data = img.data;
+    var height = new Float32Array(S * S);
+    var cover = new Float32Array(S * S);
+    var color = new Float32Array(S * S * 3);
+    var tone = PAD_TONES[pad.kind] || PAD_TONES.mature;
+    var seed = pad.seed;
+    var cos = Math.cos(pad.rot);
+    var sin = Math.sin(pad.rot);
+    var flip = pad.flipped ? -1 : 1;
+    var half = S / 2;
+    var span = TAU - 2 * pad.notch;
+    var veins = pad.veins;
+    var slitTan = Math.tan(pad.notch);
+    // The sun's direction in the pad's own frame, for the water beads.
+    var sunX = (LIGHT_X * cos + LIGHT_Y * sin) * flip;
+    var sunY = -LIGHT_X * sin + LIGHT_Y * cos;
+    var x;
+    var y;
+    var i;
+    var k;
+
+    for (y = 0; y < S; y++) {
+      for (x = 0; x < S; x++) {
+        i = y * S + x;
+        // Screen offset to the pad's own frame: undo the rotation, then the flip.
+        var sx = (x + 0.5 - half) / dpr;
+        var sy = (y + 0.5 - half) / dpr;
+        var lx = (sx * cos + sy * sin) * flip;
+        var ly = -sx * sin + sy * cos;
+        var u = lx / rx;
+        var v = ly / ry;
+        var r = Math.sqrt(u * u + v * v);
+        if (r > 1.14) continue;
+        var a = Math.atan2(v, u);
+        var ca = r > 0 ? u / r : 1;
+        var sa = r > 0 ? v / r : 0;
+
+        var e =
+          1 +
+          pad.wobA * Math.sin(3 * a + pad.wobP) +
+          pad.wobB * Math.sin(7 * a + pad.wobP * 1.7) +
+          0.03 * (vnoise(ca * 3 + 7, sa * 3 + 3, seed) - 0.5);
+        for (k = 0; k < pad.bites.length; k++) {
+          var bite = pad.bites[k];
+          var da = Math.atan2(Math.sin(a - bite.a), Math.cos(a - bite.a)) / bite.w;
+          if (da > -1 && da < 1) e -= bite.d * Math.sqrt(1 - da * da);
+        }
+        var c = Math.max(0, Math.min(1, (e - r) * Rn * dpr + 0.5));
+        var edgeT = r / e;
+        var lift = 1.3 * smoothstep(0.84, 1, edgeT);
+        if (lx > 0) {
+          // The slit: narrow at the stem, opening a little at the rim.
+          var gap = lx * slitTan + 0.7 * smoothstep(0.8, 1, r);
+          var out = Math.abs(ly) - gap;
+          c *= Math.max(0, Math.min(1, out * dpr + 0.5));
+          lift = Math.max(lift, (1 - smoothstep(0, 2.5, out)) * smoothstep(0.1, 0.35, r));
+        }
+        cover[i] = c;
+
+        // Veins fan out from the stem and fork about halfway to the rim.
+        var t = a < 0 ? a + TAU : a;
+        var aw = t + 0.07 * (vnoise(u * 2.5 + 3, v * 2.5 + 5, seed) - 0.5);
+        var ph = ((aw - pad.notch) / span) * (veins - 1);
+        var dph = ph - Math.round(ph);
+        var fork = 0.25 * smoothstep(0.42, 0.85, r);
+        var dd = Math.min(Math.abs(dph - fork), Math.abs(dph + fork));
+        var dist = ((dd * span) / (veins - 1)) * r * Rn;
+        var vw = 0.36 + 0.45 * (1 - r);
+        var vein =
+          Math.exp(-(dist * dist) / (vw * vw)) *
+          smoothstep(0.05, 0.18, r) *
+          (1 - 0.6 * smoothstep(0.88, 0.99, edgeT));
+
+        var h =
+          lift -
+          0.16 * vein +
+          1.1 * (fbm2(u * 1.5 + 11, v * 1.5 + 4, seed) - 0.5) +
+          0.1 * (vnoise(u * 9 + 2, v * 9 + 6, seed + 7) - 0.5) +
+          0.4 * Math.exp(-(r * Rn) * (r * Rn) / 3);
+
+        // Young leaves are mottled: green coming through the red in blotches.
+        var m = fbm2(u * 2.2 + 1, v * 2.2 + 8, seed + 3);
+        m = Math.max(0, Math.min(1, (m - 0.25) * (pad.kind === "young" ? 2.6 : 1.7)));
+        var cr = lerp(tone.dark[0], tone.mid[0], m);
+        var cg = lerp(tone.dark[1], tone.mid[1], m);
+        var cb = lerp(tone.dark[2], tone.mid[2], m);
+        var vm = vein * 0.28;
+        cr = lerp(cr, tone.vein[0], vm);
+        cg = lerp(cg, tone.vein[1], vm);
+        cb = lerp(cb, tone.vein[2], vm);
+        if (pad.kind === "aged") {
+          var yel = 0.6 * smoothstep(0.5, 1, edgeT) * smoothstep(0.3, 0.7, fbm2(u * 3 + 5, v * 3 + 1, seed + 9));
+          cr = lerp(cr, 0.7, yel);
+          cg = lerp(cg, 0.63, yel);
+          cb = lerp(cb, 0.24, yel);
+        }
+        var band = smoothstep(0.935, 0.99, edgeT) * pad.redRim;
+        cr = lerp(cr, tone.rim[0], band);
+        cg = lerp(cg, tone.rim[1], band);
+        cb = lerp(cb, tone.rim[2], band);
+
+        for (k = 0; k < pad.spots.length; k++) {
+          var spot = pad.spots[k];
+          var qx = lx - spot.x * rx;
+          var qy = ly - spot.y * ry;
+          var q =
+            (Math.sqrt(qx * qx + qy * qy) / (spot.r * Rn)) *
+            (1 + 0.5 * (vnoise(qx * 0.5 + spot.x * 20, qy * 0.5, seed + 11) - 0.5));
+          if (q > 1.8) continue;
+          var halo = 1 - smoothstep(0.8, 1.8, q);
+          var core = 1 - smoothstep(0.5, 0.8, q);
+          cr = lerp(lerp(cr, 0.72, halo * 0.5), 0.36, core * 0.85);
+          cg = lerp(lerp(cg, 0.64, halo * 0.5), 0.22, core * 0.85);
+          cb = lerp(lerp(cb, 0.24, halo * 0.5), 0.1, core * 0.85);
+          h -= core * 0.2;
+        }
+
+        for (k = 0; k < pad.drops.length; k++) {
+          var drop = pad.drops[k];
+          var ox = (lx - drop.x * rx) / drop.r;
+          var oy = (ly - drop.y * ry) / drop.r;
+          var d2 = ox * ox + oy * oy;
+          if (d2 >= 1.6) continue;
+          if (d2 >= 1) {
+            // The bead's shadow, on the side away from the sun.
+            var bx = ox + sunX * 0.35;
+            var by = oy + sunY * 0.35;
+            var shadow = 0.25 * (1 - smoothstep(0.8, 1.5, bx * bx + by * by));
+            cr *= 1 - shadow;
+            cg *= 1 - shadow;
+            cb *= 1 - shadow;
+            continue;
+          }
+          // A bead of water: the leaf shows through its middle a little brighter,
+          // a thin dark rim, and a hard spark of sun near the top.
+          var lens = 1.12 - 0.5 * smoothstep(0.55, 1, d2);
+          cr *= lens;
+          cg *= lens;
+          cb *= lens;
+          var sparkX = ox - sunX * 0.42;
+          var sparkY = oy - sunY * 0.42;
+          var spark = 1 - smoothstep(0.02, 0.09, sparkX * sparkX + sparkY * sparkY);
+          cr += spark * 0.8;
+          cg += spark * 0.8;
+          cb += spark * 0.8;
+        }
+
+        if (edgeT > 0.975) {
+          cr *= 0.82;
+          cg *= 0.82;
+          cb *= 0.82;
+        }
+
+        height[i] = h;
+        color[i * 3] = cr;
+        color[i * 3 + 1] = cg;
+        color[i * 3 + 2] = cb;
+      }
+    }
+
+    // Light the leaf from its bumps: diffuse for shape, a sharp waxy highlight for gloss.
+    for (y = 1; y < S - 1; y++) {
+      for (x = 1; x < S - 1; x++) {
+        i = y * S + x;
+        if (cover[i] <= 0) continue;
+        var gx = (height[i + 1] - height[i - 1]) * dpr * 0.5;
+        var gy = (height[i + S] - height[i - S]) * dpr * 0.5;
+        var inv = 1 / Math.sqrt(gx * gx + gy * gy + 1);
+        var nx = -gx * inv;
+        var ny = -gy * inv;
+        var nz = inv;
+        var diff = Math.max(0, nx * PAD_SUN[0] + ny * PAD_SUN[1] + nz * PAD_SUN[2]) / PAD_SUN[2];
+        var nh = Math.max(0, nx * PAD_HALF[0] + ny * PAD_HALF[1] + nz * PAD_HALF[2]);
+        var spec = 0.06 * Math.pow(nh, 20) + 0.22 * Math.pow(nh, 120);
+        var lit = 0.4 + 0.6 * diff;
+        var o = i * 4;
+        data[o] = Math.min(255, (color[i * 3] * lit + spec * 0.86 + 0.02) * 255);
+        data[o + 1] = Math.min(255, (color[i * 3 + 1] * lit + spec * 0.93 + 0.025) * 255);
+        data[o + 2] = Math.min(255, (color[i * 3 + 2] * lit + spec * 0.95 + 0.025) * 255);
+        data[o + 3] = cover[i] * 255;
+      }
+    }
+    cctx.putImageData(img, 0, 0);
+    return canvas;
+  }
+
+  KoiPond.prototype.padSprite = function (pad) {
+    var dpr = this.dpr || 1;
+    var key = pad.rx.toFixed(2) + ":" + dpr;
+    if (!pad.sprite || pad.spriteKey !== key) {
+      pad.sprite = renderPadSprite(pad, dpr);
+      pad.spriteKey = key;
+    }
+    return pad.sprite;
+  };
+
+  // Petal outline: widest a third of the way out, coming to a soft point.
   function tracePetal(ctx, len, wid) {
     ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(wid, -len * 0.22, wid * 0.9, -len * 0.72, 0, -len);
-    ctx.bezierCurveTo(-wid * 0.9, -len * 0.72, -wid, -len * 0.22, 0, 0);
+    ctx.bezierCurveTo(wid * 0.95, -len * 0.14, wid * 1.08, -len * 0.62, 0, -len);
+    ctx.bezierCurveTo(-wid * 1.08, -len * 0.62, -wid * 0.95, -len * 0.14, 0, 0);
   }
 
-  var LOTUS_LAYERS = [
-    { count: 8, len: 1.0, wid: 0.36, turn: 0 },
-    { count: 8, len: 0.8, wid: 0.32, turn: Math.PI / 8 },
-    { count: 6, len: 0.56, wid: 0.27, turn: 0.26 },
-  ];
+  var BLOOM_COLORS = {
+    pink: {
+      base: "#fff3f3",
+      body: "#f8c3d0",
+      tip: "#e57c9d",
+      inner: "#ec93ae",
+      edge: "rgba(168, 54, 96, 0.3)",
+      shade: [128, 34, 74],
+      lit: [255, 246, 249],
+    },
+    white: {
+      base: "#eef0d4",
+      body: "#fffef9",
+      tip: "#fcf5ec",
+      inner: "#f9f1de",
+      edge: "rgba(132, 126, 100, 0.32)",
+      shade: [92, 96, 74],
+      lit: [255, 255, 255],
+    },
+  };
 
-  KoiPond.prototype.drawLotus = function (pad, ctx) {
-    var white = pad.lotusColor === "white";
-    var R = pad.rx * 0.6;
-    var base = white ? "#ece6d2" : "#fbe8ee";
-    var body = white ? "#fffdf6" : "#f7b6c8";
-    var tip = white ? "#fbf1ec" : "#df5f8a";
-    var edge = white ? "rgba(150, 140, 118, 0.4)" : "rgba(170, 52, 92, 0.38)";
-    // Petals stand above the water, so they shade the ones beneath. Pads are
-    // drawn once under WebGL, which makes canvas shadows affordable there.
-    var shade = !!this.water;
-    var dpr = this.dpr || 1;
-
-    LOTUS_LAYERS.forEach(function (layer, li) {
-      var len = R * layer.len;
-      var wid = R * layer.wid;
-      var i;
-      var a;
-
-      if (shade) {
-        ctx.save();
-        ctx.shadowColor = "rgba(8, 36, 28, " + (li === 0 ? 0.4 : 0.26) + ")";
-        ctx.shadowBlur = (li === 0 ? 5 : 3) * dpr;
-        ctx.shadowOffsetX = (li === 0 ? 2.4 : 1.1) * dpr;
-        ctx.shadowOffsetY = (li === 0 ? 3.2 : 1.5) * dpr;
-        ctx.fillStyle = base;
-        ctx.beginPath();
-        for (i = 0; i < layer.count; i++) {
-          a = (TAU * i) / layer.count + layer.turn + pad.phase;
-          ctx.save();
-          ctx.rotate(a);
-          tracePetal(ctx, len, wid);
-          ctx.restore();
-        }
-        ctx.fill();
-        ctx.restore();
+  // A water lily: four green sepals, four rings of cupped petals that get
+  // shorter and more upright toward the middle, then a crown of stamens.
+  function makeBloom() {
+    var rings = [
+      { count: 8, len: 1.0, wid: 0.27, turn: 0 },
+      { count: 8, len: 0.86, wid: 0.27, turn: Math.PI / 8 },
+      { count: 8, len: 0.68, wid: 0.25, turn: 0.2 },
+      { count: 6, len: 0.48, wid: 0.23, turn: 0.55 },
+    ];
+    var petals = rings.map(function (ring) {
+      var list = [];
+      for (var i = 0; i < ring.count; i++) {
+        list.push({
+          a: ring.turn + (TAU * i) / ring.count + rand(-0.09, 0.09),
+          len: ring.len * rand(0.9, 1.06),
+          wid: ring.wid * rand(0.88, 1.12),
+        });
       }
+      return list;
+    });
+    var sepals = [];
+    for (var s = 0; s < 4; s++) {
+      sepals.push({ a: Math.PI / 8 + (s * Math.PI) / 2 + rand(-0.12, 0.12), len: rand(0.88, 0.98) });
+    }
+    var stamens = [];
+    for (var k = 0; k < 34; k++) {
+      stamens.push({
+        a: (TAU * k) / 34 + rand(-0.05, 0.05),
+        r0: rand(0.27, 0.33),
+        r1: rand(0.11, 0.15),
+        bend: rand(-0.3, 0.3),
+      });
+    }
+    return { petals: petals, sepals: sepals, stamens: stamens };
+  }
 
-      for (i = 0; i < layer.count; i++) {
-        a = (TAU * i) / layer.count + layer.turn + pad.phase;
+  // lx, ly: direction to the sun.
+  KoiPond.prototype.drawLotus = function (pad, ctx, lx, ly) {
+    var bloom = pad.bloom || (pad.bloom = makeBloom());
+    var col = BLOOM_COLORS[pad.lotusColor] || BLOOM_COLORS.pink;
+    var R = pad.rx * 0.62;
+    var dpr = this.dpr || 1;
+    var spin = pad.phase;
+
+    bloom.sepals.forEach(function (sp) {
+      var len = R * sp.len;
+      ctx.save();
+      ctx.rotate(sp.a + spin);
+      var sg = ctx.createLinearGradient(0, 0, 0, -len);
+      sg.addColorStop(0, "#4b7433");
+      sg.addColorStop(0.6, "#6f9748");
+      sg.addColorStop(1, "#9dbb6c");
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      tracePetal(ctx, len, R * 0.24);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(28, 56, 20, 0.35)";
+      ctx.lineWidth = 0.45;
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    bloom.petals.forEach(function (ring, ri) {
+      // Petals stand above the water, so each ring shades the one beneath it.
+      ctx.save();
+      ctx.shadowColor = "rgba(8, 36, 28, " + (ri === 0 ? 0.4 : 0.24) + ")";
+      ctx.shadowBlur = (ri === 0 ? 5 : 3) * dpr;
+      ctx.shadowOffsetX = (ri === 0 ? 2.4 : 1.2) * dpr;
+      ctx.shadowOffsetY = (ri === 0 ? 3.2 : 1.6) * dpr;
+      ctx.fillStyle = col.base;
+      ctx.beginPath();
+      ring.forEach(function (p) {
         ctx.save();
-        ctx.rotate(a);
+        ctx.rotate(p.a + spin);
+        tracePetal(ctx, R * p.len, R * p.wid);
+        ctx.restore();
+      });
+      ctx.fill();
+      ctx.restore();
+
+      ring.forEach(function (p) {
+        var ang = p.a + spin;
+        var len = R * p.len;
+        var wid = R * p.wid;
+        ctx.save();
+        ctx.rotate(ang);
         var g = ctx.createLinearGradient(0, 0, 0, -len);
-        g.addColorStop(0, base);
-        g.addColorStop(0.45, body);
-        g.addColorStop(1, tip);
+        g.addColorStop(0, col.base);
+        g.addColorStop(0.45, col.body);
+        g.addColorStop(1, ri >= 2 ? col.inner : col.tip);
         ctx.fillStyle = g;
         ctx.beginPath();
         tracePetal(ctx, len, wid);
         ctx.fill();
-        ctx.strokeStyle = edge;
-        ctx.lineWidth = 0.5;
+
+        // Petals are cupped like a spoon: the wall facing the sun is the far one.
+        var plx = lx * Math.cos(ang) + ly * Math.sin(ang);
+        var amt = 0.12 + 0.3 * Math.min(1, Math.abs(plx) * 1.3);
+        var lit = rgba(col.lit, amt * 0.9);
+        var dim = rgba(col.shade, amt);
+        var clear = rgba(col.lit, 0);
+        var cg = ctx.createLinearGradient(-wid, 0, wid, 0);
+        cg.addColorStop(0, plx < 0 ? dim : lit);
+        cg.addColorStop(0.5, clear);
+        cg.addColorStop(1, plx < 0 ? lit : dim);
+        ctx.fillStyle = cg;
+        ctx.fill();
+
+        ctx.strokeStyle = col.edge;
+        ctx.lineWidth = 0.45;
         ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, -len * 0.12);
-        ctx.lineTo(0, -len * 0.8);
+        ctx.strokeStyle = rgba(col.lit, 0.35);
         ctx.lineWidth = 0.4;
+        ctx.beginPath();
+        ctx.moveTo(0, -len * 0.1);
+        ctx.lineTo(0, -len * 0.82);
         ctx.stroke();
         ctx.restore();
-      }
+      });
     });
 
-    ctx.strokeStyle = "#efb63c";
-    ctx.lineWidth = 0.8;
+    // Stamens curl in over the middle: dark outline first, then the gold.
+    var stamenW = Math.max(0.8, R * 0.075);
     ctx.lineCap = "round";
+    [
+      ["#a86d1c", stamenW],
+      ["#f3bf3f", stamenW * 0.62],
+    ].forEach(function (pass) {
+      ctx.strokeStyle = pass[0];
+      ctx.lineWidth = pass[1];
+      ctx.beginPath();
+      bloom.stamens.forEach(function (st) {
+        var a0 = st.a + spin;
+        var a1 = a0 + st.bend * 0.4;
+        ctx.moveTo(Math.cos(a0) * R * st.r0, Math.sin(a0) * R * st.r0);
+        ctx.quadraticCurveTo(
+          Math.cos(a0 + st.bend * 0.2) * R * (st.r0 + st.r1) * 0.5,
+          Math.sin(a0 + st.bend * 0.2) * R * (st.r0 + st.r1) * 0.5,
+          Math.cos(a1) * R * st.r1,
+          Math.sin(a1) * R * st.r1
+        );
+      });
+      ctx.stroke();
+    });
+    ctx.fillStyle = "#ffe17e";
+    bloom.stamens.forEach(function (st, i) {
+      if (i % 2) return;
+      var a1 = st.a + spin + st.bend * 0.4;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a1) * R * st.r1, Math.sin(a1) * R * st.r1, stamenW * 0.32, 0, TAU);
+      ctx.fill();
+    });
+
+    var disc = ctx.createRadialGradient(-R * 0.03, -R * 0.04, 0, 0, 0, R * 0.12);
+    disc.addColorStop(0, "#f6e9a4");
+    disc.addColorStop(1, "#c3a23c");
+    ctx.fillStyle = disc;
     ctx.beginPath();
-    for (var k = 0; k < 22; k++) {
-      var sa = (TAU * k) / 22;
-      ctx.moveTo(Math.cos(sa) * R * 0.13, Math.sin(sa) * R * 0.13);
-      ctx.lineTo(Math.cos(sa) * R * 0.28, Math.sin(sa) * R * 0.28);
+    ctx.arc(0, 0, R * 0.11, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(128, 98, 26, 0.5)";
+    ctx.lineWidth = 0.4;
+    ctx.beginPath();
+    for (var j = 0; j < 12; j++) {
+      var ra = (TAU * j) / 12 + spin;
+      ctx.moveTo(Math.cos(ra) * R * 0.025, Math.sin(ra) * R * 0.025);
+      ctx.lineTo(Math.cos(ra) * R * 0.1, Math.sin(ra) * R * 0.1);
     }
     ctx.stroke();
-
-    var pod = ctx.createRadialGradient(-R * 0.04, -R * 0.05, 0, 0, 0, R * 0.16);
-    pod.addColorStop(0, "#f7eea6");
-    pod.addColorStop(1, "#c9b54a");
-    ctx.fillStyle = pod;
-    ctx.beginPath();
-    ctx.arc(0, 0, R * 0.15, 0, TAU);
-    ctx.fill();
-
-    ctx.fillStyle = "rgba(118, 106, 36, 0.6)";
-    var seedR = Math.max(0.5, R * 0.024);
-    for (var j = 0; j <= 6; j++) {
-      var ba = (TAU / 6) * j;
-      var br = j === 6 ? 0 : R * 0.075;
-      ctx.beginPath();
-      ctx.arc(Math.cos(ba) * br, Math.sin(ba) * br, seedR, 0, TAU);
-      ctx.fill();
-    }
   };
 
   KoiPond.prototype.drawLilyPad = function (pad, ctx) {
     ctx = ctx || this.ctx;
-    ctx.save();
-    ctx.translate(pad.x, pad.y);
-    ctx.rotate(pad.rot);
-    if (pad.flipped) {
-      ctx.scale(-1, 1);
-    }
-
-    // Direction to the light (upper left of the screen) in this pad's own coordinates.
-    var lx = -0.6 * Math.cos(pad.rot) - 0.8 * Math.sin(pad.rot);
-    var ly = 0.6 * Math.sin(pad.rot) - 0.8 * Math.cos(pad.rot);
-    if (pad.flipped) lx = -lx;
-    var R = pad.rx;
+    var dpr = this.dpr || 1;
 
     if (!this.water) {
+      ctx.save();
+      ctx.translate(pad.x, pad.y);
+      ctx.rotate(pad.rot);
       ctx.fillStyle = "rgba(9, 42, 36, 0.22)";
       ctx.beginPath();
       ctx.ellipse(4, 5, pad.rx + 3, pad.ry + 3, 0, 0, TAU);
       ctx.fill();
-    }
-
-    var lg = ctx.createRadialGradient(lx * R * 0.3, ly * R * 0.3, 0, 0, 0, R * 1.05);
-    if (pad.aged) {
-      lg.addColorStop(0, "#a3cf74");
-      lg.addColorStop(0.45, "#68a352");
-      lg.addColorStop(0.8, "#4b8442");
-      lg.addColorStop(1, "#77783a");
-    } else {
-      lg.addColorStop(0, "#8ed07a");
-      lg.addColorStop(0.45, "#53a55a");
-      lg.addColorStop(0.82, "#337e48");
-      lg.addColorStop(1, "#26633a");
-    }
-    ctx.fillStyle = lg;
-    ctx.beginPath();
-    tracePad(ctx, pad, 0);
-    ctx.fill();
-
-    ctx.save();
-    ctx.beginPath();
-    tracePad(ctx, pad, 0);
-    ctx.clip();
-
-    var veins = 17;
-    var lightPath = [];
-    var darkPath = [];
-    for (var v = 0; v < veins; v++) {
-      var a = pad.notch + 0.12 + ((TAU - 2 * pad.notch - 0.24) * v) / (veins - 1);
-      var bend = Math.sin(v * 2.3 + pad.wobP) * 0.06;
-      lightPath.push([
-        Math.cos(a + bend) * pad.rx * 0.5,
-        Math.sin(a + bend) * pad.ry * 0.5,
-        Math.cos(a) * pad.rx * 0.92,
-        Math.sin(a) * pad.ry * 0.92,
-      ]);
-      darkPath.push(lightPath[v]);
-    }
-    ctx.lineWidth = 0.75;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "rgba(205, 242, 175, 0.13)";
-    ctx.beginPath();
-    lightPath.forEach(function (c) {
-      ctx.moveTo(lx * 0.6, ly * 0.6);
-      ctx.quadraticCurveTo(c[0] + lx * 0.6, c[1] + ly * 0.6, c[2] + lx * 0.6, c[3] + ly * 0.6);
-    });
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(22, 82, 46, 0.3)";
-    ctx.beginPath();
-    darkPath.forEach(function (c) {
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(c[0], c[1], c[2], c[3]);
-    });
-    ctx.stroke();
-
-    var sx = lx * R * 0.42;
-    var sy = ly * R * 0.42;
-    var sheen = ctx.createRadialGradient(sx, sy, 0, sx, sy, R * 0.75);
-    sheen.addColorStop(0, "rgba(236, 255, 226, 0.22)");
-    sheen.addColorStop(1, "rgba(236, 255, 226, 0)");
-    ctx.fillStyle = sheen;
-    ctx.fillRect(-R * 1.2, -R * 1.2, R * 2.4, R * 2.4);
-    ctx.restore();
-
-    // The edge curls up a little: lit on the sun side, darker on the far side.
-    var rim = ctx.createLinearGradient(lx * R, ly * R, -lx * R, -ly * R);
-    rim.addColorStop(0, "rgba(208, 244, 178, 0.62)");
-    rim.addColorStop(0.5, "rgba(120, 180, 110, 0.22)");
-    rim.addColorStop(1, "rgba(14, 56, 32, 0.6)");
-    ctx.strokeStyle = rim;
-    ctx.lineWidth = 1.3;
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    tracePad(ctx, pad, 0.65);
-    ctx.stroke();
-
-    ctx.fillStyle = "rgba(196, 230, 152, 0.55)";
-    ctx.beginPath();
-    ctx.arc(0, 0, 1.4, 0, TAU);
-    ctx.fill();
-
-    if (pad.hasLotus) {
-      ctx.save();
-      ctx.translate(pad.lotusOffsetX, pad.lotusOffsetY);
-      this.drawLotus(pad, ctx);
       ctx.restore();
     }
 
-    ctx.restore();
+    // Line the texture up with device pixels so it stays sharp.
+    var sprite = this.padSprite(pad);
+    var S = sprite.width;
+    var ix = Math.round(pad.x * dpr - S / 2);
+    var iy = Math.round(pad.y * dpr - S / 2);
+    ctx.drawImage(sprite, ix / dpr, iy / dpr, S / dpr, S / dpr);
+
+    if (pad.hasLotus) {
+      ctx.save();
+      ctx.translate(pad.x + pad.lotusOffsetX, pad.y + pad.lotusOffsetY);
+      this.drawLotus(pad, ctx, LIGHT_X, LIGHT_Y);
+      ctx.restore();
+    }
   };
 
   KoiPond.prototype.frame = function (timestamp) {
@@ -1508,9 +2130,7 @@
       this.water.step(this.dt);
       this.water.render(timestamp / 1000, this.layer);
     } else {
-      this.lilyPads.forEach(function (pad) {
-        self.drawLilyPad(pad);
-      });
+      this.ctx.drawImage(this.padLayer, 0, 0, this.w, this.h);
       this.drawRipples();
     }
 

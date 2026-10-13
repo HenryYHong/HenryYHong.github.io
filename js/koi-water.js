@@ -149,9 +149,16 @@
     "  vec2 rq = p * 0.0021 + n.xy * 2.2 + vec2(uTime * 0.006, uTime * 0.002);",
     "  float sky = smoothstep(0.35, 0.8, fbm(rq));",
     "  col = mix(col, vec3(0.78, 0.92, 0.95), 0.02 + 0.06 * sky);",
-    "  vec3 sunH = normalize(normalize(vec3(-0.1, -0.13, 1.0)) + vec3(0.0, 0.0, 1.0));",
-    "  float glint = pow(max(dot(n, sunH), 0.0), 6000.0);",
-    "  col += vec3(1.0, 0.97, 0.9) * glint * breeze * 0.75;",
+    // Sun glints: tiny ripple facets that tip toward the sun for an instant.
+    // A few random points per patch of water, each flashing on its own beat.
+    "  vec2 gp = p / 7.0;",
+    "  vec2 gi = floor(gp);",
+    "  float gh = hash(gi + 3.7);",
+    "  vec2 gc = vec2(hash(gi + 11.3), hash(gi + 27.1)) * 0.7 + 0.15;",
+    "  vec2 gd = (fract(gp) - gc) * 7.0;",
+    "  float flash = pow(max(sin(uTime * (2.5 + 4.0 * gh) + gh * 40.0), 0.0), 30.0);",
+    "  float spark = flash * step(0.8, hash(gi + 51.9)) * exp(-dot(gd, gd) * 0.9);",
+    "  col += vec3(1.0, 0.97, 0.9) * spark * breeze * 1.8;",
 
     // Lily pads float on top. Water hugs their edges in a thin bright line.
     "  vec4 pad = texture2D(uPads, uv);",
@@ -169,8 +176,8 @@
   var MIN_CELL = 4; // ripple grid spacing in CSS px
   var MAX_CELLS_X = 420;
   var STEP = 1 / 60;
-  var WAVE_K = 0.2; // (c * dt / dx)^2; ripples spread about 25 cells a second
-  var WAVE_DAMP = 0.993;
+  var WAVE_K = 0.14; // (c * dt / dx)^2; ripples spread about 22 cells a second
+  var WAVE_DAMP = 0.975; // small ripples die out within a second or so
   var WAVE_VISC = 0.008; // smooths out grid-sized wiggles faster than real ripples
   var SPONGE = 6; // cells of absorbing border so ripples leave the frame quietly
   var FLOOR_DEPTH = 60; // px of water between surface and floor, for ripple light
