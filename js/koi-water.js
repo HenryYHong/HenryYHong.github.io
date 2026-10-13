@@ -129,8 +129,12 @@
     "  vec3 silt = mix(vec3(0.3, 0.38, 0.48), vec3(0.16, 0.22, 0.32), uNight);",
     "  bed = mix(bed, silt * (1.1 - vis * 0.6), mud * mix(0.08, 0.25, uNight));",
 
-    "  float fishSh = soft(uFish, fp - vec2(11.0, 14.0), 5.5);",
-    "  float padSh = soft(uPads, fp - vec2(15.0, 19.0), 7.0);",
+    // Shadows land well away from what casts them and spread out on the way
+    // down, since the floor is deep. Two rings of samples keep the wide blur smooth.
+    "  vec2 fo = fp - vec2(18.0, 23.0);",
+    "  vec2 po = fp - vec2(24.0, 30.0);",
+    "  float fishSh = 0.5 * (soft(uFish, fo, 10.0) + soft(uFish, fo, 5.0));",
+    "  float padSh = 0.5 * (soft(uPads, po, 13.0) + soft(uPads, po, 6.5));",
     "  float sh = clamp(fishSh * 0.75 + padSh * 0.85, 0.0, 0.9);",
     // Light on the floor. A pond floor doesn't show the net of bright lines a
     // pool does; its light is broad and soft: slow swells of brightness under
@@ -145,7 +149,7 @@
     "  float lit = mix(0.8, 0.9, day) + mix(0.3, 0.2, day) * dapple - sh * mix(0.36, 0.52, day);",
     "  vec3 col = bed * lit * mix(1.0, ringLight, 0.35);",
     "  vec3 sunCol = mix(vec3(0.74, 0.88, 1.0), vec3(1.0, 0.97, 0.86), day);",
-    "  col += sunCol * caust * (1.0 - sh) * mix(0.1, 0.05, vis) * (1.0 + 0.35 * day);",
+    "  col += sunCol * caust * (1.0 - sh) * mix(0.05, 0.025, vis) * (1.0 + 0.35 * day);",
 
     // Fish, a little shallower: bent less, lit more softly, tinted by the water.
     "  vec2 fishP = p + g * 0.12;",
@@ -156,11 +160,8 @@
     "  fc = mix(fc, mix(vec3(0.14, 0.32, 0.48), vec3(0.07, 0.2, 0.38), uNight) * fish.a, 0.1);",
     "  col = col * (1.0 - fish.a) + fc;",
 
-    // The surface: sky and trees reflected in it, bent by its slope, and sun glints.
+    // The surface: clouds reflected in it, the moon at night, and sun glints.
     "  vec3 n = normalize(vec3(-slope, 1.0));",
-    "  vec2 rq = p * 0.0021 + n.xy * 2.2 + vec2(uTime * 0.006, uTime * 0.002);",
-    "  float sky = smoothstep(0.35, 0.8, fbm(rq));",
-    "  col = mix(col, vec3(0.86, 0.92, 0.97), (0.02 + 0.06 * sky) * mix(1.3, 0.6, uNight));",
     // Ripple rings show mostly as the sky caught on the side that faces it.
     "  col += vec3(0.75, 0.85, 0.8) * clamp(dot(rg, vec2(-0.6, -0.8)) / 24.0, 0.0, 1.0) * 0.3;",
     "  col += vec3(0.8, 0.9, 0.85) * clamp(dot(dropG, vec2(-0.6, -0.8)) * 0.12, -0.07, 0.16);",
@@ -187,6 +188,21 @@
     "    col = mix(col, moonCol, disc * 0.85 * uNight);",
     "    col += vec3(0.55, 0.68, 0.9) * exp(-md * md / (moonR * moonR * 9.0)) * 0.16 * uNight;",
     "  }",
+    // Clouds reflected in the water, drifting with the wind. Small slow wavelets
+    // on the surface break up their edges, which is what makes them read as a
+    // reflection rather than light in the water. The swell bends them a little
+    // and ripples from food and fish distort them. They thin out behind the heading.
+    "  vec2 wq = p * 0.11 + vec2(uTime * 0.35, uTime * 0.12);",
+    "  vec2 wavelet = vec2(noise(wq), noise(wq + 17.3)) - 0.5;",
+    "  vec2 cq = (p + g / 110.0 * 30.0 + wavelet * 9.0) * 0.0026 + vec2(-uTime * 0.018, -uTime * 0.005);",
+    "  cq += (vec2(fbm(cq * 1.3 + 3.1), fbm(cq * 1.3 + 8.4)) - 0.5) * 0.7;",
+    "  float puff = fbm(cq + vec2(0.0, uTime * 0.003));",
+    "  float cloud = smoothstep(0.53, 0.6, puff);",
+    // Thicker middles reflect brighter than the thin edges.
+    "  cloud *= 0.75 + 0.25 * smoothstep(0.6, 0.75, puff);",
+    "  cloud *= mix(0.5, 1.0, smoothstep(0.6, 1.4, length(mid)));",
+    "  vec3 cloudCol = mix(vec3(0.97, 0.98, 1.0), vec3(0.42, 0.5, 0.66), uNight);",
+    "  col = mix(col, cloudCol, cloud * mix(0.42, 0.16, uNight));",
     // Sun glints: tiny ripple facets that tip toward the sun for an instant.
     // A few random points per patch of water, each flashing on its own beat.
     "  vec2 gp = p / 7.0;",
