@@ -641,9 +641,10 @@
 
       ctx.globalAlpha = 0.6 + fade * 0.4;
       var g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
-      g.addColorStop(0, "#e9bd7c");
-      g.addColorStop(0.55, "#b8793a");
-      g.addColorStop(1, "#77461d");
+      // Golden-orange, like color-enhancing koi pellets.
+      g.addColorStop(0, "#ffe39a");
+      g.addColorStop(0.5, "#f8a93f");
+      g.addColorStop(1, "#e07a2c");
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(x, y, r, 0, TAU);
