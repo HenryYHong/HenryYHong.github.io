@@ -29,6 +29,8 @@
     "uniform sampler2D uRipple;",
     "uniform vec4 uDrops[12];",
     "uniform sampler2D uMoon;",
+    "uniform sampler2D uFishShade;",
+    "uniform sampler2D uPadShade;",
     "uniform float uMoonReady;",
 
     "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
@@ -51,6 +53,21 @@
     "}",
 
 
+    // Shadow layers are small, already-blurred copies of the fish and pads; a
+    // few overlapping taps on top of the texture's own smoothing keep them soft.
+    "float shade(sampler2D tex, vec2 p, float r) {",
+    "  vec2 px = 1.0 / uRes;",
+    "  float a = texture2D(tex, p * px).a * 0.25;",
+    "  a += texture2D(tex, (p + vec2(r, 0.0)) * px).a * 0.125;",
+    "  a += texture2D(tex, (p - vec2(r, 0.0)) * px).a * 0.125;",
+    "  a += texture2D(tex, (p + vec2(0.0, r)) * px).a * 0.125;",
+    "  a += texture2D(tex, (p - vec2(0.0, r)) * px).a * 0.125;",
+    "  a += texture2D(tex, (p + vec2(r, r)) * px).a * 0.0625;",
+    "  a += texture2D(tex, (p - vec2(r, r)) * px).a * 0.0625;",
+    "  a += texture2D(tex, (p + vec2(r, -r)) * px).a * 0.0625;",
+    "  a += texture2D(tex, (p - vec2(r, -r)) * px).a * 0.0625;",
+    "  return a;",
+    "}",
     "float soft(sampler2D tex, vec2 p, float r) {",
     "  vec2 px = 1.0 / uRes;",
     "  float d = r * 0.7071;",
@@ -130,11 +147,9 @@
     "  bed = mix(bed, silt * (1.1 - vis * 0.6), mud * mix(0.08, 0.25, uNight));",
 
     // Shadows land well away from what casts them and spread out on the way
-    // down, since the floor is deep. Two rings of samples keep the wide blur smooth.
-    "  vec2 fo = fp - vec2(18.0, 23.0);",
-    "  vec2 po = fp - vec2(24.0, 30.0);",
-    "  float fishSh = 0.5 * (soft(uFish, fo, 10.0) + soft(uFish, fo, 5.0));",
-    "  float padSh = 0.5 * (soft(uPads, po, 13.0) + soft(uPads, po, 6.5));",
+    // down, since the floor is deep.
+    "  float fishSh = shade(uFishShade, fp - vec2(18.0, 23.0), 7.0);",
+    "  float padSh = shade(uPadShade, fp - vec2(24.0, 30.0), 9.0);",
     "  float sh = clamp(fishSh * 0.75 + padSh * 0.85, 0.0, 0.9);",
     // Light on the floor. A pond floor doesn't show the net of bright lines a
     // pool does; its light is broad and soft: slow swells of brightness under
@@ -240,6 +255,7 @@
   var CURVE_RANGE = 3; // must match the 6.0 decode (2 * range) in the shader
   var DROP_SLOTS = 12; // must match uDrops[12] in the shader
   var MOON_SRC = "assets/img/moon.jpg"; // NASA/GSFC/Arizona State University, public domain
+  var SHADE_SCALE = 6; // CSS px per texel of the blurred shadow layers
 
   function compile(gl, type, src) {
     var sh = gl.createShader(type);
@@ -278,6 +294,11 @@
     this.drops = new Float32Array(DROP_SLOTS * 4);
     this.dropNext = 0;
     this.moonImage = null;
+    // Small copies of the fish and pad layers; shrinking them blurs them smoothly.
+    this.fishShade = document.createElement("canvas");
+    this.padShade = document.createElement("canvas");
+    this.fishShadeCtx = this.fishShade.getContext("2d");
+    this.padShadeCtx = this.padShade.getContext("2d");
 
     var self = this;
     this._onLost = function (e) {
@@ -351,7 +372,7 @@
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
     var u = {};
-    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady"].forEach(function (name) {
+    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
     });
     this.u = u;
@@ -359,12 +380,18 @@
     gl.uniform1i(u.uPads, 1);
     gl.uniform1i(u.uRipple, 2);
     gl.uniform1i(u.uMoon, 3);
+    gl.uniform1i(u.uFishShade, 4);
+    gl.uniform1i(u.uPadShade, 5);
 
     this.fishTex = this.makeTexture(0);
     this.padTex = this.makeTexture(1);
     this.rippleTex = this.makeTexture(2);
     this.moonTex = this.makeTexture(3);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([230, 233, 240, 255]));
+    this.fishShadeTex = this.makeTexture(4);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+    this.padShadeTex = this.makeTexture(5);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
     var empty = new Uint8Array([0, 0, 0, 0]);
     gl.activeTexture(gl.TEXTURE1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, empty);
@@ -392,7 +419,22 @@
     this.top = top || 0;
     this.canvas.width = Math.floor(w * dpr);
     this.canvas.height = Math.floor(h * dpr);
+    var sw = Math.max(1, Math.ceil(w / SHADE_SCALE));
+    var sh = Math.max(1, Math.ceil(h / SHADE_SCALE));
+    [this.fishShade, this.padShade].forEach(function (c) {
+      c.width = sw;
+      c.height = sh;
+    });
     this.allocGrid();
+  };
+
+  // Draw a layer into its small shadow copy, letting the browser average it down.
+  KoiWater.prototype.shrink = function (ctx, source) {
+    var c = ctx.canvas;
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(source, 0, 0, c.width, c.height);
   };
 
   KoiWater.prototype.allocGrid = function () {
@@ -585,13 +627,19 @@
     this.padSource = padCanvas;
     if (this.lost) return;
     this.uploadCanvas(1, padCanvas);
+    this.shrink(this.padShadeCtx, padCanvas);
+    this.uploadCanvas(5, this.padShade);
   };
 
   KoiWater.prototype.render = function (seconds, fishCanvas) {
     if (this.lost || !this.w) return;
     var gl = this.gl;
     var u = this.u;
-    if (fishCanvas) this.uploadCanvas(0, fishCanvas);
+    if (fishCanvas) {
+      this.uploadCanvas(0, fishCanvas);
+      this.shrink(this.fishShadeCtx, fishCanvas);
+      this.uploadCanvas(4, this.fishShade);
+    }
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.uniform2f(u.uRes, this.w, this.h);
     gl.uniform1f(u.uDpr, this.canvas.width / this.w);
@@ -621,6 +669,8 @@
       gl.deleteTexture(this.padTex);
       gl.deleteTexture(this.rippleTex);
       gl.deleteTexture(this.moonTex);
+      gl.deleteTexture(this.fishShadeTex);
+      gl.deleteTexture(this.padShadeTex);
       gl.deleteProgram(this.prog);
     }
   };
