@@ -188,18 +188,15 @@
     "    col = mix(col, moonCol, disc * 0.85 * uNight);",
     "    col += vec3(0.55, 0.68, 0.9) * exp(-md * md / (moonR * moonR * 9.0)) * 0.16 * uNight;",
     "  }",
-    // Clouds reflected in the water, drifting with the wind. Small slow wavelets
-    // on the surface break up their edges, which is what makes them read as a
-    // reflection rather than light in the water. The swell bends them a little
-    // and ripples from food and fish distort them. They thin out behind the heading.
-    "  vec2 wq = p * 0.11 + vec2(uTime * 0.35, uTime * 0.12);",
-    "  vec2 wavelet = vec2(noise(wq), noise(wq + 17.3)) - 0.5;",
-    "  vec2 cq = (p + g / 110.0 * 30.0 + wavelet * 9.0) * 0.0026 + vec2(-uTime * 0.018, -uTime * 0.005);",
-    "  cq += (vec2(fbm(cq * 1.3 + 3.1), fbm(cq * 1.3 + 8.4)) - 0.5) * 0.7;",
+    // Clouds reflected in the water, drifting with the wind: soft and misty at
+    // the edges, a little stretched along the way they drift. The swell bends
+    // them slightly and ripples from food and fish distort them. They thin out
+    // behind the heading.
+    "  vec2 cp2 = p + g / 110.0 * 30.0;",
+    "  vec2 cq = vec2(cp2.x * 0.0018, cp2.y * 0.003) + vec2(-uTime * 0.013, -uTime * 0.003);",
+    "  cq += (vec2(fbm(cq * 1.1 + 3.1), fbm(cq * 1.1 + 8.4)) - 0.5) * 0.35;",
     "  float puff = fbm(cq + vec2(0.0, uTime * 0.003));",
-    "  float cloud = smoothstep(0.53, 0.6, puff);",
-    // Thicker middles reflect brighter than the thin edges.
-    "  cloud *= 0.75 + 0.25 * smoothstep(0.6, 0.75, puff);",
+    "  float cloud = smoothstep(0.47, 0.72, puff);",
     "  cloud *= mix(0.5, 1.0, smoothstep(0.6, 1.4, length(mid)));",
     "  vec3 cloudCol = mix(vec3(0.97, 0.98, 1.0), vec3(0.42, 0.5, 0.66), uNight);",
     "  col = mix(col, cloudCol, cloud * mix(0.42, 0.16, uNight));",
