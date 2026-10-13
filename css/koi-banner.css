@@ -38,8 +38,12 @@
 
 [data-banner="koi"] header.masthead {
   position: relative;
-  background: linear-gradient(180deg, #234a74 0%, #1e436b 36%, #173259 72%, #0e1e3d 100%);
+  background: linear-gradient(180deg, #4477a2 0%, #4277a8 36%, #376a9e 72%, #21466e 100%);
   cursor: pointer;
+}
+
+[data-banner="koi"][data-theme="dark"] header.masthead {
+  background: linear-gradient(180deg, #214976 0%, #1f4777 36%, #183866 72%, #0c1d3d 100%);
 }
 
 [data-banner="koi"] header.masthead .masthead-heading {

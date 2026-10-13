@@ -21,6 +21,7 @@
     "uniform float uDpr;",
     "uniform float uTime;",
     "uniform float uTop;",
+    "uniform float uNight;",
     "uniform vec2 uGrid;",
     "uniform float uCell;",
     "uniform sampler2D uFish;",
@@ -85,12 +86,12 @@
 
     // Gentle swell that never stops.
     "  vec2 g = vec2(0.0);",
-    "  wave(p, 0.35, 118.0, 0.24, 21.0, 0.0, g);",
-    "  wave(p, 1.45, 97.0, 0.22, 25.0, 1.7, g);",
-    "  wave(p, 2.30, 134.0, 0.21, 18.0, 4.1, g);",
-    "  wave(p, 3.55, 86.0, 0.19, 27.0, 2.6, g);",
-    "  wave(p, 4.60, 107.0, 0.2, 23.0, 5.3, g);",
-    "  wave(p, 5.50, 76.0, 0.17, 30.0, 3.3, g);",
+    "  wave(p, 0.35, 118.0, 0.24, 6.0, 0.0, g);",
+    "  wave(p, 1.45, 97.0, 0.22, 7.5, 1.7, g);",
+    "  wave(p, 2.30, 134.0, 0.21, 5.5, 4.1, g);",
+    "  wave(p, 3.55, 86.0, 0.19, 8.0, 2.6, g);",
+    "  wave(p, 4.60, 107.0, 0.2, 6.5, 5.3, g);",
+    "  wave(p, 5.50, 76.0, 0.17, 8.5, 3.3, g);",
 
     // Ripples from feeding and from the fish, simulated on the CPU.
     "  vec4 rip = texture2D(uRipple, (p / uCell + 1.0) / uGrid);",
@@ -128,15 +129,17 @@
     "  vec2 slope = g / 110.0 + gw * breeze * 0.09;",
 
     // Pond floor: silt and stone seen through clear water.
-    "  vec2 fp = p + g * 0.35;",
+    "  vec2 fp = p + g * 0.16;",
     "  float vis = clamp((p.y - uTop) / max(uRes.y - uTop, 1.0), 0.0, 1.0);",
     "  float big = fbm(fp * 0.003 + vec2(3.7, 1.3));",
-    "  vec3 shallow = vec3(0.14, 0.34, 0.56);",
-    "  vec3 deep = vec3(0.04, 0.12, 0.29);",
+    // Light blue by day, deep blue in night mode.
+    "  vec3 shallow = mix(vec3(0.3, 0.55, 0.76), vec3(0.14, 0.34, 0.56), uNight);",
+    "  vec3 deep = mix(vec3(0.13, 0.32, 0.53), vec3(0.04, 0.12, 0.29), uNight);",
     "  vec3 bed = mix(shallow, deep, clamp(vis * 0.9 + (big - 0.5) * 0.5, 0.0, 1.0));",
     "  bed *= 0.86 + 0.2 * fbm(fp * 0.02 + vec2(9.2, 4.4));",
     "  float mud = smoothstep(0.45, 0.75, fbm(fp * 0.006 + vec2(1.9, 7.3)));",
-    "  bed = mix(bed, vec3(0.16, 0.22, 0.32) * (1.1 - vis * 0.6), mud * 0.25);",
+    "  vec3 silt = mix(vec3(0.3, 0.38, 0.48), vec3(0.16, 0.22, 0.32), uNight);",
+    "  bed = mix(bed, silt * (1.1 - vis * 0.6), mud * 0.25);",
 
     "  float fishSh = soft(uFish, fp - vec2(11.0, 14.0), 5.5);",
     "  float padSh = soft(uPads, fp - vec2(15.0, 19.0), 7.0);",
@@ -144,12 +147,12 @@
     // Light on the floor. In a pond it is faint and broken: soft wavy threads
     // that come and go, over broad patches of sun and shade from the trees.
     "  vec2 cp = fp * 0.012;",
-    "  cp += (vec2(noise(cp * 0.8 + uTime * 0.1), noise(cp * 0.8 + 7.7 - uTime * 0.08)) - 0.5) * 1.7;",
-    "  float e1 = cells(cp, uTime * 0.4);",
-    "  float thick = 0.7 + 0.6 * noise(cp * 1.3 + vec2(uTime * 0.08, 3.0));",
+    "  cp += (vec2(noise(cp * 0.8 + uTime * 0.025), noise(cp * 0.8 + 7.7 - uTime * 0.02)) - 0.5) * 1.7;",
+    "  float e1 = cells(cp, uTime * 0.09);",
+    "  float thick = 0.7 + 0.6 * noise(cp * 1.3 + vec2(uTime * 0.03, 3.0));",
     "  vec3 lw = vec3(0.15, 0.17, 0.19) * thick;",
     "  vec3 c1 = 1.0 - smoothstep(vec3(0.0), lw, vec3(e1));",
-    "  float threads = smoothstep(0.4, 0.75, noise(cp * 0.6 + vec2(uTime * 0.06, 1.0)));",
+    "  float threads = smoothstep(0.4, 0.75, noise(cp * 0.6 + vec2(uTime * 0.025, 1.0)));",
     "  vec3 caust = c1 * c1 * threads;",
     "  float dapple = smoothstep(0.3, 0.7, fbm(fp * 0.0035 + vec2(uTime * 0.01, 2.0)));",
     "  caust *= (0.3 + dapple) * ringLight;",
@@ -162,14 +165,14 @@
     "  float padOnFish = soft(uPads, fishP - vec2(6.0, 8.0), 4.0);",
     "  float fishLit = 1.0 - smoothstep(0.0, 0.3, e1);",
     "  vec3 fc = fish.rgb * (0.9 + 0.22 * fishLit) * (1.0 - 0.45 * padOnFish);",
-    "  fc = mix(fc, vec3(0.07, 0.2, 0.38) * fish.a, 0.1);",
+    "  fc = mix(fc, mix(vec3(0.14, 0.32, 0.48), vec3(0.07, 0.2, 0.38), uNight) * fish.a, 0.1);",
     "  col = col * (1.0 - fish.a) + fc;",
 
     // The surface: sky and trees reflected in it, bent by its slope, and sun glints.
     "  vec3 n = normalize(vec3(-slope, 1.0));",
     "  vec2 rq = p * 0.0021 + n.xy * 2.2 + vec2(uTime * 0.006, uTime * 0.002);",
     "  float sky = smoothstep(0.35, 0.8, fbm(rq));",
-    "  col = mix(col, vec3(0.86, 0.92, 0.97), 0.02 + 0.06 * sky);",
+    "  col = mix(col, vec3(0.86, 0.92, 0.97), (0.02 + 0.06 * sky) * (1.0 - 0.4 * uNight));",
     // Ripple rings show mostly as the sky caught on the side that faces it.
     "  col += vec3(0.75, 0.85, 0.8) * clamp(dot(rg, vec2(-0.6, -0.8)) / 24.0, 0.0, 1.0) * 0.3;",
     "  col += vec3(0.8, 0.9, 0.85) * clamp(dot(dropG, vec2(-0.6, -0.8)) * 0.12, -0.07, 0.16);",
@@ -187,8 +190,8 @@
     "  float gh = hash(gi + 3.7);",
     "  vec2 gc = vec2(hash(gi + 11.3), hash(gi + 27.1)) * 0.7 + 0.15;",
     "  vec2 gd = (fract(gp) - gc) * 7.0;",
-    "  float flash = pow(max(sin(uTime * (2.5 + 4.0 * gh) + gh * 40.0), 0.0), 30.0);",
-    "  float spark = flash * step(0.8, hash(gi + 51.9)) * exp(-dot(gd, gd) * 0.9);",
+    "  float flash = pow(max(sin(uTime * (0.8 + 1.2 * gh) + gh * 40.0), 0.0), 16.0);",
+    "  float spark = flash * step(0.87, hash(gi + 51.9)) * exp(-dot(gd, gd) * 0.9);",
     "  col += vec3(1.0, 0.97, 0.9) * spark * breeze * 1.8;",
 
     // Lily pads float on top. Water hugs their edges in a thin bright line.
@@ -198,7 +201,7 @@
     "  col = col * (1.0 - pad.a) + pad.rgb;",
 
     "  vec2 q = uv - vec2(0.5, 0.58);",
-    "  col *= 1.0 - 0.35 * smoothstep(0.32, 0.95, length(q * vec2(1.0, 1.4)));",
+    "  col *= 1.0 - mix(0.28, 0.35, uNight) * smoothstep(0.32, 0.95, length(q * vec2(1.0, 1.4)));",
     "  col += (hash(gl_FragCoord.xy + fract(uTime)) - 0.5) / 255.0;",
     "  gl_FragColor = vec4(col, 1.0);",
     "}",
@@ -248,6 +251,8 @@
     this.padSource = null;
     this.onRestore = null;
     this.time = 0;
+    this.night = 0;
+    this.nightTarget = 0;
     this.drops = new Float32Array(DROP_SLOTS * 4);
     this.dropNext = 0;
 
@@ -315,7 +320,7 @@
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
     var u = {};
-    ["uRes", "uDpr", "uTime", "uTop", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops"].forEach(function (name) {
+    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
     });
     this.u = u;
@@ -426,6 +431,12 @@
       }
     }
     this.active = true;
+  };
+
+  // Night mode darkens the water. It fades over about half a second unless `now`.
+  KoiWater.prototype.setNight = function (on, now) {
+    this.nightTarget = on ? 1 : 0;
+    if (now) this.night = this.nightTarget;
   };
 
   // A small ring where something touches the surface, starting `delay` seconds from now.
@@ -542,8 +553,15 @@
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.uniform2f(u.uRes, this.w, this.h);
     gl.uniform1f(u.uDpr, this.canvas.width / this.w);
-    this.time = seconds % 3600;
+    var t = seconds % 3600;
+    var dt = Math.max(0, Math.min(0.1, t - this.time));
+    this.time = t;
+    if (this.night !== this.nightTarget) {
+      var stepN = dt / 0.5;
+      this.night += Math.max(-stepN, Math.min(stepN, this.nightTarget - this.night));
+    }
     gl.uniform1f(u.uTime, this.time);
+    gl.uniform1f(u.uNight, this.night);
     gl.uniform4fv(u.uDrops, this.drops);
     gl.uniform1f(u.uTop, this.top);
     gl.uniform2f(u.uGrid, this.gw, this.gh);

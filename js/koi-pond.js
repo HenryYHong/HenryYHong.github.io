@@ -679,9 +679,19 @@
     this._onResize = this.resize.bind(this);
     window.addEventListener("resize", this._onResize);
 
+    // Follow the site's light and dark themes.
+    var pond = this;
+    if (this.water) this.water.setNight(this.isNight(), true);
+    if (window.MutationObserver) {
+      this.themeObserver = new MutationObserver(function () {
+        // Fade while it's on screen; a paused pond just switches.
+        if (pond.water) pond.water.setNight(pond.isNight(), !pond.running);
+      });
+      this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    }
+
     // No point animating a pond nobody can see.
     if (window.IntersectionObserver) {
-      var pond = this;
       this.visibilityObserver = new IntersectionObserver(function (entries) {
         var seen = entries[entries.length - 1].isIntersecting;
         if (seen === pond.visible) return;
@@ -693,6 +703,10 @@
     }
 
     if (callback) callback();
+  };
+
+  KoiPond.prototype.isNight = function () {
+    return document.documentElement.getAttribute("data-theme") === "dark";
   };
 
   KoiPond.prototype.paintInitialFrame = function () {
@@ -1265,10 +1279,13 @@
     var ctx = this.ctx;
     var t = this.time * 0.0004;
     var g = ctx.createLinearGradient(0, 0, 0, this.h);
-    g.addColorStop(0, "#2a5585");
-    g.addColorStop(0.36, "#224a76");
-    g.addColorStop(0.72, "#1a3863");
-    g.addColorStop(1, "#0f2244");
+    var stops = this.isNight()
+      ? ["#2a5585", "#224a76", "#1a3863", "#0f2244"]
+      : ["#5a8fbd", "#4f84b3", "#3c6d9b", "#264f7a"];
+    g.addColorStop(0, stops[0]);
+    g.addColorStop(0.36, stops[1]);
+    g.addColorStop(0.72, stops[2]);
+    g.addColorStop(1, stops[3]);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.w, this.h);
 
@@ -1850,6 +1867,10 @@
     if (this.visibilityObserver) {
       this.visibilityObserver.disconnect();
       this.visibilityObserver = null;
+    }
+    if (this.themeObserver) {
+      this.themeObserver.disconnect();
+      this.themeObserver = null;
     }
     if (this.canvas.parentElement) {
       this.canvas.parentElement.removeEventListener("pointerdown", this._boundFeedClick);
