@@ -156,9 +156,9 @@
     "  float threads = smoothstep(0.4, 0.75, noise(cp * 0.6 + vec2(uTime * 0.025, 1.0)));",
     "  vec3 caust = c1 * c1 * threads;",
     "  float dapple = smoothstep(0.3, 0.7, fbm(fp * 0.0035 + vec2(uTime * 0.01, 2.0)));",
-    "  caust *= (mix(0.3, 0.6, day) + mix(1.0, 0.7, day) * dapple) * ringLight;",
-    // By day the whole pond is in sun: shade patches and shadows are light.
-    "  float lit = mix(0.8, 0.9, day) + mix(0.3, 0.18, day) * dapple - sh * mix(0.36, 0.24, day);",
+    "  caust *= (0.3 + dapple) * ringLight;",
+    // In daylight the sun patches are brighter and the shadows under fish and pads crisper.
+    "  float lit = 0.8 - 0.1 * day + mix(0.3, 0.45, day) * dapple - sh * mix(0.36, 0.52, day);",
     "  vec3 col = bed * lit * mix(1.0, ringLight, 0.35);",
     "  vec3 sunCol = mix(vec3(0.74, 0.88, 1.0), vec3(1.0, 0.97, 0.86), day);",
     "  col += sunCol * caust * (1.0 - sh) * mix(0.13, 0.06, vis) * (1.0 + 0.8 * day);",
@@ -168,7 +168,7 @@
     "  vec4 fish = texture2D(uFish, fishP / uRes);",
     "  float padOnFish = soft(uPads, fishP - vec2(6.0, 8.0), 4.0);",
     "  float fishLit = 1.0 - smoothstep(0.0, 0.3, e1);",
-    "  vec3 fc = fish.rgb * (0.9 + 0.22 * fishLit) * (1.0 - mix(0.45, 0.28, day) * padOnFish);",
+    "  vec3 fc = fish.rgb * (0.9 + 0.22 * fishLit) * (1.0 - 0.45 * padOnFish);",
     "  fc = mix(fc, mix(vec3(0.14, 0.32, 0.48), vec3(0.07, 0.2, 0.38), uNight) * fish.a, 0.1);",
     "  col = col * (1.0 - fish.a) + fc;",
 
