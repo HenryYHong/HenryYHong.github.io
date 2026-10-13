@@ -1281,7 +1281,7 @@
     var g = ctx.createLinearGradient(0, 0, 0, this.h);
     var stops = this.isNight()
       ? ["#2a5585", "#224a76", "#1a3863", "#0f2244"]
-      : ["#5a8fbd", "#4f84b3", "#3c6d9b", "#264f7a"];
+      : ["#6a9fc6", "#5f97c2", "#4e88b6", "#2f5e86"];
     g.addColorStop(0, stops[0]);
     g.addColorStop(0.36, stops[1]);
     g.addColorStop(0.72, stops[2]);

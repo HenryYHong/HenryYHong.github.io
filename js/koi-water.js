@@ -132,9 +132,10 @@
     "  vec2 fp = p + g * 0.16;",
     "  float vis = clamp((p.y - uTop) / max(uRes.y - uTop, 1.0), 0.0, 1.0);",
     "  float big = fbm(fp * 0.003 + vec2(3.7, 1.3));",
-    // Light blue by day, deep blue in night mode.
-    "  vec3 shallow = mix(vec3(0.3, 0.55, 0.76), vec3(0.14, 0.34, 0.56), uNight);",
-    "  vec3 deep = mix(vec3(0.13, 0.32, 0.53), vec3(0.04, 0.12, 0.29), uNight);",
+    // Sunny light blue by day, deep blue in night mode.
+    "  float day = 1.0 - uNight;",
+    "  vec3 shallow = mix(vec3(0.38, 0.65, 0.86), vec3(0.14, 0.34, 0.56), uNight);",
+    "  vec3 deep = mix(vec3(0.17, 0.42, 0.66), vec3(0.04, 0.12, 0.29), uNight);",
     "  vec3 bed = mix(shallow, deep, clamp(vis * 0.9 + (big - 0.5) * 0.5, 0.0, 1.0));",
     "  bed *= 0.86 + 0.2 * fbm(fp * 0.02 + vec2(9.2, 4.4));",
     "  float mud = smoothstep(0.45, 0.75, fbm(fp * 0.006 + vec2(1.9, 7.3)));",
@@ -156,8 +157,11 @@
     "  vec3 caust = c1 * c1 * threads;",
     "  float dapple = smoothstep(0.3, 0.7, fbm(fp * 0.0035 + vec2(uTime * 0.01, 2.0)));",
     "  caust *= (0.3 + dapple) * ringLight;",
-    "  vec3 col = bed * (0.8 + 0.3 * dapple - sh * 0.36) * mix(1.0, ringLight, 0.35);",
-    "  col += vec3(0.74, 0.88, 1.0) * caust * (1.0 - sh) * mix(0.13, 0.06, vis);",
+    // In daylight the sun patches are brighter and the shadows under fish and pads crisper.
+    "  float lit = 0.8 - 0.1 * day + mix(0.3, 0.45, day) * dapple - sh * mix(0.36, 0.52, day);",
+    "  vec3 col = bed * lit * mix(1.0, ringLight, 0.35);",
+    "  vec3 sunCol = mix(vec3(0.74, 0.88, 1.0), vec3(1.0, 0.97, 0.86), day);",
+    "  col += sunCol * caust * (1.0 - sh) * mix(0.13, 0.06, vis) * (1.0 + 0.8 * day);",
 
     // Fish, a little shallower: bent less, lit more softly, tinted by the water.
     "  vec2 fishP = p + g * 0.12;",
@@ -172,7 +176,7 @@
     "  vec3 n = normalize(vec3(-slope, 1.0));",
     "  vec2 rq = p * 0.0021 + n.xy * 2.2 + vec2(uTime * 0.006, uTime * 0.002);",
     "  float sky = smoothstep(0.35, 0.8, fbm(rq));",
-    "  col = mix(col, vec3(0.86, 0.92, 0.97), (0.02 + 0.06 * sky) * (1.0 - 0.4 * uNight));",
+    "  col = mix(col, vec3(0.86, 0.92, 0.97), (0.02 + 0.06 * sky) * mix(1.3, 0.6, uNight));",
     // Ripple rings show mostly as the sky caught on the side that faces it.
     "  col += vec3(0.75, 0.85, 0.8) * clamp(dot(rg, vec2(-0.6, -0.8)) / 24.0, 0.0, 1.0) * 0.3;",
     "  col += vec3(0.8, 0.9, 0.85) * clamp(dot(dropG, vec2(-0.6, -0.8)) * 0.12, -0.07, 0.16);",
@@ -192,7 +196,7 @@
     "  vec2 gd = (fract(gp) - gc) * 7.0;",
     "  float flash = pow(max(sin(uTime * (0.8 + 1.2 * gh) + gh * 40.0), 0.0), 16.0);",
     "  float spark = flash * step(0.87, hash(gi + 51.9)) * exp(-dot(gd, gd) * 0.9);",
-    "  col += vec3(1.0, 0.97, 0.9) * spark * breeze * 1.8;",
+    "  col += vec3(1.0, 0.97, 0.9) * spark * breeze * mix(2.2, 1.8, uNight);",
 
     // Lily pads float on top. Water hugs their edges in a thin bright line.
     "  vec4 pad = texture2D(uPads, uv);",
@@ -201,7 +205,9 @@
     "  col = col * (1.0 - pad.a) + pad.rgb;",
 
     "  vec2 q = uv - vec2(0.5, 0.58);",
-    "  col *= 1.0 - mix(0.28, 0.35, uNight) * smoothstep(0.32, 0.95, length(q * vec2(1.0, 1.4)));",
+    // A touch of warm sunlight over everything by day.
+    "  col *= mix(vec3(1.0), vec3(1.04, 1.02, 0.97), day);",
+    "  col *= 1.0 - mix(0.18, 0.35, uNight) * smoothstep(0.32, 0.95, length(q * vec2(1.0, 1.4)));",
     "  col += (hash(gl_FragCoord.xy + fract(uTime)) - 0.5) / 255.0;",
     "  gl_FragColor = vec4(col, 1.0);",
     "}",
