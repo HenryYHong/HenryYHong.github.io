@@ -8,11 +8,6 @@
     light: "Light",
     dark: "Dark",
   };
-  var ICONS = {
-    system: "fa-adjust",
-    light: "fa-sun",
-    dark: "fa-moon",
-  };
 
   function getPreference() {
     try {
@@ -43,12 +38,7 @@
     var button = document.getElementById("themeToggle");
     if (!button) return;
 
-    var icon = button.querySelector(".theme-toggle-icon");
-    if (icon) {
-      icon.classList.remove("fa-adjust", "fa-sun", "fa-moon");
-      icon.classList.add(ICONS[preference]);
-    }
-
+    // The icon follows data-theme-preference through CSS.
     var label = "Color theme: " + LABELS[preference];
     button.setAttribute("aria-label", label);
     button.setAttribute("title", label + " (click to change)");

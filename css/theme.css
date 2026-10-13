@@ -450,8 +450,41 @@ body {
 }
 
 .theme-toggle-icon {
+  display: inline-flex;
   font-size: 0.95rem;
   line-height: 1;
+}
+
+/* The toggle holds all three icons and shows the one for the current setting. */
+.theme-toggle-icon .icon-light,
+.theme-toggle-icon .icon-dark,
+[data-theme-preference="light"] .theme-toggle-icon .icon-system,
+[data-theme-preference="dark"] .theme-toggle-icon .icon-system {
+  display: none;
+}
+
+[data-theme-preference="light"] .theme-toggle-icon .icon-light,
+[data-theme-preference="dark"] .theme-toggle-icon .icon-dark {
+  display: inline-block;
+}
+
+/* Project images keep their shape when the modal is narrower than the image. */
+.portfolio-modal .modal-body img.img-fluid {
+  height: auto;
+}
+
+/* ── Icons ──────────────────────────────────────────────────────── */
+/* Inline SVGs from the sprite at the top of index.html, sized like text. */
+.icon {
+  display: inline-block;
+  height: 1em;
+  overflow: visible;
+  vertical-align: -0.125em;
+  fill: currentColor;
+}
+
+.icon-3x {
+  font-size: 3em;
 }
 
 .nav-item-theme {

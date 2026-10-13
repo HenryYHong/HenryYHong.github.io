@@ -189,6 +189,21 @@
     "  vec2 dd = (fract(dp) - dc) * 23.0;",
     "  float speck = step(0.82, hash(di + 2.3)) * exp(-dot(dd, dd) * 1.4);",
     "  col = mix(col, vec3(0.8, 0.76, 0.58), speck * 0.35);",
+    // Night mode: the moon reflected in the water, upper right and clear of the
+    // heading. The surface slope bends the reflection, so it wobbles with the
+    // swell and breaks up when ripples cross it.
+    "  vec2 moonC = vec2(uRes.x * 0.7, uTop + (uRes.y - uTop) * 0.3);",
+    "  float moonR = clamp(uRes.x * 0.016, 14.0, 22.0);",
+    "  vec2 mo = p + n.xy * 40.0 - moonC;",
+    "  float md = length(mo);",
+    "  float nearMoon = exp(-dot(p - moonC, p - moonC) / 25600.0);",
+    "  if (uNight > 0.0) {",
+    "    float disc = 1.0 - smoothstep(moonR - 1.2, moonR + 1.2, md);",
+    "    float maria = smoothstep(0.42, 0.62, fbm(mo / moonR * 1.4 + vec2(3.0, 7.0)));",
+    "    vec3 moonCol = vec3(0.92, 0.94, 0.97) * (1.0 - 0.13 * maria);",
+    "    col = mix(col, moonCol, disc * 0.85 * uNight);",
+    "    col += vec3(0.55, 0.68, 0.9) * exp(-md * md / (moonR * moonR * 9.0)) * 0.16 * uNight;",
+    "  }",
     // Sun glints: tiny ripple facets that tip toward the sun for an instant.
     // A few random points per patch of water, each flashing on its own beat.
     "  vec2 gp = p / 7.0;",
@@ -198,7 +213,9 @@
     "  vec2 gd = (fract(gp) - gc) * 7.0;",
     "  float flash = pow(max(sin(uTime * (0.8 + 1.2 * gh) + gh * 40.0), 0.0), 16.0);",
     "  float spark = flash * step(0.87, hash(gi + 51.9)) * exp(-dot(gd, gd) * 0.9);",
-    "  col += vec3(1.0, 0.97, 0.9) * spark * breeze * mix(2.2, 1.8, uNight);",
+    // At night the glints gather around the moon's reflection.
+    "  float gate = mix(breeze, max(breeze * 0.35, nearMoon), uNight);",
+    "  col += vec3(1.0, 0.97, 0.9) * spark * gate * mix(2.2, 1.8, uNight);",
 
     // Lily pads float on top. Water hugs their edges in a thin bright line.
     "  vec4 pad = texture2D(uPads, uv);",
