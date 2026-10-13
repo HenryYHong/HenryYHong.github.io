@@ -136,11 +136,12 @@
     "  float day = 1.0 - uNight;",
     "  vec3 shallow = mix(vec3(0.38, 0.65, 0.86), vec3(0.14, 0.34, 0.56), uNight);",
     "  vec3 deep = mix(vec3(0.17, 0.42, 0.66), vec3(0.04, 0.12, 0.29), uNight);",
-    "  vec3 bed = mix(shallow, deep, clamp(vis * 0.9 + (big - 0.5) * 0.5, 0.0, 1.0));",
-    "  bed *= 0.86 + 0.2 * fbm(fp * 0.02 + vec2(9.2, 4.4));",
+    // By day the floor is more even: fewer deep patches and less mud.
+    "  vec3 bed = mix(shallow, deep, clamp(vis * 0.9 + (big - 0.5) * mix(0.2, 0.5, uNight), 0.0, 1.0));",
+    "  bed *= mix(0.93, 0.86, uNight) + mix(0.1, 0.2, uNight) * fbm(fp * 0.02 + vec2(9.2, 4.4));",
     "  float mud = smoothstep(0.45, 0.75, fbm(fp * 0.006 + vec2(1.9, 7.3)));",
     "  vec3 silt = mix(vec3(0.3, 0.38, 0.48), vec3(0.16, 0.22, 0.32), uNight);",
-    "  bed = mix(bed, silt * (1.1 - vis * 0.6), mud * 0.25);",
+    "  bed = mix(bed, silt * (1.1 - vis * 0.6), mud * mix(0.08, 0.25, uNight));",
 
     "  float fishSh = soft(uFish, fp - vec2(11.0, 14.0), 5.5);",
     "  float padSh = soft(uPads, fp - vec2(15.0, 19.0), 7.0);",
@@ -156,9 +157,10 @@
     "  float threads = smoothstep(0.4, 0.75, noise(cp * 0.6 + vec2(uTime * 0.025, 1.0)));",
     "  vec3 caust = c1 * c1 * threads;",
     "  float dapple = smoothstep(0.3, 0.7, fbm(fp * 0.0035 + vec2(uTime * 0.01, 2.0)));",
-    "  caust *= (0.3 + dapple) * ringLight;",
+    "  caust *= (mix(0.6, 0.3, uNight) + mix(0.7, 1.0, uNight) * dapple) * ringLight;",
     // In daylight the sun patches are brighter and the shadows under fish and pads crisper.
-    "  float lit = 0.8 - 0.1 * day + mix(0.3, 0.45, day) * dapple - sh * mix(0.36, 0.52, day);",
+    // Shade from trees is mostly a night-mode look; by day it's only a hint.
+    "  float lit = mix(0.8, 0.9, day) + mix(0.3, 0.2, day) * dapple - sh * mix(0.36, 0.52, day);",
     "  vec3 col = bed * lit * mix(1.0, ringLight, 0.35);",
     "  vec3 sunCol = mix(vec3(0.74, 0.88, 1.0), vec3(1.0, 0.97, 0.86), day);",
     "  col += sunCol * caust * (1.0 - sh) * mix(0.13, 0.06, vis) * (1.0 + 0.8 * day);",
