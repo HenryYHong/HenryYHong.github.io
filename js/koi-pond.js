@@ -320,10 +320,10 @@
     { x: 0.07, y: 0.72, scale: 0.95, lotus: true, lotusColor: "pink", lotusSide: -Math.PI * 0.42 },
     { x: 0.2, y: 0.14, scale: 1.05, flipped: true },
     { x: 0.84, y: 0.16, scale: 0.9, lotus: true, lotusColor: "white", lotusSide: Math.PI * 0.92 },
-    { x: 0.92, y: 0.72, scale: 1.0, flipped: true, kind: "aged" },
+    { x: 0.92, y: 0.72, scale: 1.0, flipped: true },
     { x: 0.1, y: 0.36, scale: 0.72, flipped: true },
     { x: 0.9, y: 0.44, scale: 0.78, lotus: true, lotusColor: "pink", lotusSide: Math.PI * 0.08 },
-    { x: 0.58, y: 0.86, scale: 0.68, flipped: true, kind: "aged" },
+    { x: 0.58, y: 0.86, scale: 0.68, flipped: true },
     { x: 0.35, y: 0.1, scale: 0.62, lotus: true, lotusColor: "white", lotusSide: -Math.PI * 0.18 },
     { parent: 0, at: Math.PI * 0.3, scale: 0.42, kind: "young" },
     { parent: 1, at: Math.PI * 0.2, scale: 0.44, kind: "young" },
@@ -369,27 +369,13 @@
         wobB: rand(0.006, 0.016),
         wobP: rand(0, TAU),
         veins: randInt(18, 24),
-        redRim: kind === "young" ? 0.8 : rand(0.15, 0.6),
-        bites: [],
-        spots: [],
+        redRim: kind === "young" ? 0.5 : rand(0.15, 0.5),
         drops: [],
       };
       var k;
       var ang;
       var dist;
-      // Angles stay clear of the slit, which runs along angle 0.
-      if (kind === "aged" || Math.random() < 0.25) {
-        for (k = kind === "aged" ? randInt(1, 2) : 1; k > 0; k--) {
-          pad.bites.push({ a: rand(0.8, TAU - 0.8), w: rand(0.1, 0.2), d: rand(0.05, 0.1) });
-        }
-      }
-      if (kind === "aged") {
-        for (k = randInt(2, 4); k > 0; k--) {
-          ang = rand(0.5, TAU - 0.5);
-          dist = rand(0.3, 0.8);
-          pad.spots.push({ x: Math.cos(ang) * dist, y: Math.sin(ang) * dist, r: rand(0.05, 0.11) });
-        }
-      }
+      // Beads of water stay clear of the slit, which runs along angle 0.
       if (kind !== "young") {
         for (k = randInt(0, 3); k > 0; k--) {
           ang = rand(0.6, TAU - 0.6);
@@ -1279,10 +1265,10 @@
     var ctx = this.ctx;
     var t = this.time * 0.0004;
     var g = ctx.createLinearGradient(0, 0, 0, this.h);
-    g.addColorStop(0, "#36604a");
-    g.addColorStop(0.36, "#2b503c");
-    g.addColorStop(0.72, "#1e3a2e");
-    g.addColorStop(1, "#11251e");
+    g.addColorStop(0, "#2a5585");
+    g.addColorStop(0.36, "#224a76");
+    g.addColorStop(0.72, "#1a3863");
+    g.addColorStop(1, "#0f2244");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.w, this.h);
 
@@ -1295,8 +1281,8 @@
       this.h * 0.28,
       this.w * 0.62
     );
-    cg.addColorStop(0, "#c2dcb0");
-    cg.addColorStop(0.45, "rgba(118, 160, 116, 0.35)");
+    cg.addColorStop(0, "#cfe0f4");
+    cg.addColorStop(0.45, "rgba(110, 150, 210, 0.35)");
     cg.addColorStop(1, "transparent");
     ctx.fillStyle = cg;
     ctx.fillRect(0, 0, this.w, this.h);
@@ -1351,12 +1337,10 @@
     );
   }
 
-  // Leaf colors, 0 to 1. Young leaves come up bronze-red and green as they open;
-  // old ones yellow at the edges and pick up brown spots.
+  // Leaf colors, 0 to 1. Young leaves are a lighter, brighter green.
   var PAD_TONES = {
     mature: { dark: [0.15, 0.3, 0.11], mid: [0.3, 0.5, 0.17], vein: [0.5, 0.66, 0.3], rim: [0.36, 0.2, 0.15] },
-    young: { dark: [0.36, 0.15, 0.13], mid: [0.33, 0.44, 0.16], vein: [0.52, 0.56, 0.3], rim: [0.5, 0.14, 0.15] },
-    aged: { dark: [0.25, 0.37, 0.12], mid: [0.47, 0.55, 0.2], vein: [0.62, 0.68, 0.34], rim: [0.48, 0.34, 0.13] },
+    young: { dark: [0.22, 0.4, 0.13], mid: [0.4, 0.6, 0.2], vein: [0.58, 0.74, 0.34], rim: [0.42, 0.22, 0.15] },
   };
 
   function unit3(x, y, z) {
@@ -1369,7 +1353,7 @@
 
   // A lily pad drawn pixel by pixel: a round leaf with a narrow slit to the stem,
   // a slightly wavy rim that curls up, branching veins, a waxy surface that
-  // catches the sun on every bump, and now and then a bead of water or an old bite.
+  // catches the sun on every bump, and now and then a bead of water.
   function renderPadSprite(pad, dpr) {
     var rx = pad.rx;
     var ry = pad.ry;
@@ -1424,11 +1408,6 @@
           pad.wobA * Math.sin(3 * a + pad.wobP) +
           pad.wobB * Math.sin(7 * a + pad.wobP * 1.7) +
           0.03 * (vnoise(ca * 3 + 7, sa * 3 + 3, seed) - 0.5);
-        for (k = 0; k < pad.bites.length; k++) {
-          var bite = pad.bites[k];
-          var da = Math.atan2(Math.sin(a - bite.a), Math.cos(a - bite.a)) / bite.w;
-          if (da > -1 && da < 1) e -= bite.d * Math.sqrt(1 - da * da);
-        }
         var c = Math.max(0, Math.min(1, (e - r) * Rn * dpr + 0.5));
         var edgeT = r / e;
         var lift = 1.3 * smoothstep(0.84, 1, edgeT);
@@ -1462,9 +1441,8 @@
           0.1 * (vnoise(u * 9 + 2, v * 9 + 6, seed + 7) - 0.5) +
           0.4 * Math.exp(-(r * Rn) * (r * Rn) / 3);
 
-        // Young leaves are mottled: green coming through the red in blotches.
         var m = fbm2(u * 2.2 + 1, v * 2.2 + 8, seed + 3);
-        m = Math.max(0, Math.min(1, (m - 0.25) * (pad.kind === "young" ? 2.6 : 1.7)));
+        m = Math.max(0, Math.min(1, (m - 0.25) * 1.7));
         var cr = lerp(tone.dark[0], tone.mid[0], m);
         var cg = lerp(tone.dark[1], tone.mid[1], m);
         var cb = lerp(tone.dark[2], tone.mid[2], m);
@@ -1472,32 +1450,10 @@
         cr = lerp(cr, tone.vein[0], vm);
         cg = lerp(cg, tone.vein[1], vm);
         cb = lerp(cb, tone.vein[2], vm);
-        if (pad.kind === "aged") {
-          var yel = 0.6 * smoothstep(0.5, 1, edgeT) * smoothstep(0.3, 0.7, fbm2(u * 3 + 5, v * 3 + 1, seed + 9));
-          cr = lerp(cr, 0.7, yel);
-          cg = lerp(cg, 0.63, yel);
-          cb = lerp(cb, 0.24, yel);
-        }
         var band = smoothstep(0.935, 0.99, edgeT) * pad.redRim;
         cr = lerp(cr, tone.rim[0], band);
         cg = lerp(cg, tone.rim[1], band);
         cb = lerp(cb, tone.rim[2], band);
-
-        for (k = 0; k < pad.spots.length; k++) {
-          var spot = pad.spots[k];
-          var qx = lx - spot.x * rx;
-          var qy = ly - spot.y * ry;
-          var q =
-            (Math.sqrt(qx * qx + qy * qy) / (spot.r * Rn)) *
-            (1 + 0.5 * (vnoise(qx * 0.5 + spot.x * 20, qy * 0.5, seed + 11) - 0.5));
-          if (q > 1.8) continue;
-          var halo = 1 - smoothstep(0.8, 1.8, q);
-          var core = 1 - smoothstep(0.5, 0.8, q);
-          cr = lerp(lerp(cr, 0.72, halo * 0.5), 0.36, core * 0.85);
-          cg = lerp(lerp(cg, 0.64, halo * 0.5), 0.22, core * 0.85);
-          cb = lerp(lerp(cb, 0.24, halo * 0.5), 0.1, core * 0.85);
-          h -= core * 0.2;
-        }
 
         for (k = 0; k < pad.drops.length; k++) {
           var drop = pad.drops[k];

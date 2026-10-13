@@ -127,35 +127,34 @@
     "  vec2 gw = vec2(noise(bq + vec2(0.05, 0.0)) - b0, noise(bq + vec2(0.0, 0.05)) - b0) * 20.0;",
     "  vec2 slope = g / 110.0 + gw * breeze * 0.09;",
 
-    // Pond floor: silt and mud seen through green water.
+    // Pond floor: silt and stone seen through clear water.
     "  vec2 fp = p + g * 0.35;",
     "  float vis = clamp((p.y - uTop) / max(uRes.y - uTop, 1.0), 0.0, 1.0);",
     "  float big = fbm(fp * 0.003 + vec2(3.7, 1.3));",
-    "  vec3 shallow = vec3(0.17, 0.34, 0.25);",
-    "  vec3 deep = vec3(0.05, 0.14, 0.12);",
+    "  vec3 shallow = vec3(0.14, 0.34, 0.56);",
+    "  vec3 deep = vec3(0.04, 0.12, 0.29);",
     "  vec3 bed = mix(shallow, deep, clamp(vis * 0.9 + (big - 0.5) * 0.5, 0.0, 1.0));",
     "  bed *= 0.86 + 0.2 * fbm(fp * 0.02 + vec2(9.2, 4.4));",
     "  float mud = smoothstep(0.45, 0.75, fbm(fp * 0.006 + vec2(1.9, 7.3)));",
-    "  bed = mix(bed, vec3(0.2, 0.22, 0.13) * (1.1 - vis * 0.6), mud * 0.35);",
+    "  bed = mix(bed, vec3(0.16, 0.22, 0.32) * (1.1 - vis * 0.6), mud * 0.25);",
 
     "  float fishSh = soft(uFish, fp - vec2(11.0, 14.0), 5.5);",
     "  float padSh = soft(uPads, fp - vec2(15.0, 19.0), 7.0);",
     "  float sh = clamp(fishSh * 0.75 + padSh * 0.85, 0.0, 0.9);",
-    "  vec2 cp = fp * 0.016;",
-    "  cp += (vec2(noise(cp * 1.1 + uTime * 0.15), noise(cp * 1.1 + 7.7 - uTime * 0.12)) - 0.5) * 0.9;",
-    "  float e1 = cells(cp, uTime * 0.55);",
-    "  float e2 = cells(cp * 1.37 + vec2(5.2, 1.3), uTime * 0.7 + 2.0);",
-    "  float thick = 0.6 + 0.8 * noise(cp * 1.7 + vec2(uTime * 0.1, 3.0));",
-    "  vec3 lw = vec3(0.08, 0.095, 0.11) * thick;",
+    // Light on the floor. In a pond it is faint and broken: soft wavy threads
+    // that come and go, over broad patches of sun and shade from the trees.
+    "  vec2 cp = fp * 0.012;",
+    "  cp += (vec2(noise(cp * 0.8 + uTime * 0.1), noise(cp * 0.8 + 7.7 - uTime * 0.08)) - 0.5) * 1.7;",
+    "  float e1 = cells(cp, uTime * 0.4);",
+    "  float thick = 0.7 + 0.6 * noise(cp * 1.3 + vec2(uTime * 0.08, 3.0));",
+    "  vec3 lw = vec3(0.15, 0.17, 0.19) * thick;",
     "  vec3 c1 = 1.0 - smoothstep(vec3(0.0), lw, vec3(e1));",
-    "  vec3 c2 = 1.0 - smoothstep(vec3(0.0), lw * 1.1, vec3(e2));",
-    "  float halo = 1.0 - smoothstep(0.0, 0.28, e1);",
-    "  vec3 caust = c1 * c1 * 0.8 + c2 * c2 * 0.3 + c1 * c2 * 0.9 + halo * halo * 0.22;",
-    "  float dapple = smoothstep(0.32, 0.66, fbm(fp * 0.0035 + vec2(uTime * 0.01, 2.0)));",
-    "  caust *= (0.2 + 1.15 * dapple) * ringLight;",
-    "  vec3 col = bed * (0.86 - sh * 0.38) * mix(1.0, ringLight, 0.35);",
-    // Sunlight reaching the floor has come through green water, so it is warm and soft.
-    "  col += vec3(0.78, 0.9, 0.58) * caust * (1.0 - sh) * mix(0.26, 0.12, vis);",
+    "  float threads = smoothstep(0.4, 0.75, noise(cp * 0.6 + vec2(uTime * 0.06, 1.0)));",
+    "  vec3 caust = c1 * c1 * threads;",
+    "  float dapple = smoothstep(0.3, 0.7, fbm(fp * 0.0035 + vec2(uTime * 0.01, 2.0)));",
+    "  caust *= (0.3 + dapple) * ringLight;",
+    "  vec3 col = bed * (0.8 + 0.3 * dapple - sh * 0.36) * mix(1.0, ringLight, 0.35);",
+    "  col += vec3(0.74, 0.88, 1.0) * caust * (1.0 - sh) * mix(0.13, 0.06, vis);",
 
     // Fish, a little shallower: bent less, lit more softly, tinted by the water.
     "  vec2 fishP = p + g * 0.12;",
@@ -163,14 +162,14 @@
     "  float padOnFish = soft(uPads, fishP - vec2(6.0, 8.0), 4.0);",
     "  float fishLit = 1.0 - smoothstep(0.0, 0.3, e1);",
     "  vec3 fc = fish.rgb * (0.9 + 0.22 * fishLit) * (1.0 - 0.45 * padOnFish);",
-    "  fc = mix(fc, vec3(0.12, 0.26, 0.18) * fish.a, 0.14);",
+    "  fc = mix(fc, vec3(0.07, 0.2, 0.38) * fish.a, 0.1);",
     "  col = col * (1.0 - fish.a) + fc;",
 
     // The surface: sky and trees reflected in it, bent by its slope, and sun glints.
     "  vec3 n = normalize(vec3(-slope, 1.0));",
     "  vec2 rq = p * 0.0021 + n.xy * 2.2 + vec2(uTime * 0.006, uTime * 0.002);",
     "  float sky = smoothstep(0.35, 0.8, fbm(rq));",
-    "  col = mix(col, vec3(0.82, 0.9, 0.88), 0.02 + 0.06 * sky);",
+    "  col = mix(col, vec3(0.86, 0.92, 0.97), 0.02 + 0.06 * sky);",
     // Ripple rings show mostly as the sky caught on the side that faces it.
     "  col += vec3(0.75, 0.85, 0.8) * clamp(dot(rg, vec2(-0.6, -0.8)) / 24.0, 0.0, 1.0) * 0.3;",
     "  col += vec3(0.8, 0.9, 0.85) * clamp(dot(dropG, vec2(-0.6, -0.8)) * 0.12, -0.07, 0.16);",
@@ -195,7 +194,7 @@
     // Lily pads float on top. Water hugs their edges in a thin bright line.
     "  vec4 pad = texture2D(uPads, uv);",
     "  float hug = clamp(soft(uPads, p, 2.0) - pad.a, 0.0, 1.0);",
-    "  col += vec3(0.7, 0.86, 0.72) * hug * 0.22;",
+    "  col += vec3(0.7, 0.85, 0.98) * hug * 0.22;",
     "  col = col * (1.0 - pad.a) + pad.rgb;",
 
     "  vec2 q = uv - vec2(0.5, 0.58);",
