@@ -65,6 +65,42 @@
     "}",
 
 
+    // The moon's face, in units of its radius. Light comes from the upper left,
+    // so inside a crater the upper-left wall is in shadow and the far wall is lit,
+    // and the outer crest catches a little light. A sea is a soft dark patch.
+    "float crater(vec2 q, vec2 c, float r) {",
+    "  vec2 o = (q - c) / r;",
+    "  float d = length(o);",
+    "  float side = dot(o / max(d, 0.001), vec2(0.6, 0.8));",
+    "  float wall = smoothstep(0.35, 0.8, d) - smoothstep(0.9, 1.0, d);",
+    "  float crest = smoothstep(0.9, 1.0, d) - smoothstep(1.0, 1.25, d);",
+    "  return -0.15 * (1.0 - smoothstep(0.8, 1.0, d)) + 0.55 * wall * side - 0.2 * crest * side;",
+    "}",
+    "float sea(vec2 q, vec2 c, float k) { vec2 o = q - c; return exp(-dot(o, o) * k); }",
+    "float moonFace(vec2 q) {",
+    "  float m = sea(q, vec2(-0.3, -0.32), 10.0) + sea(q, vec2(0.12, -0.3), 16.0)",
+    "          + sea(q, vec2(0.3, 0.02), 12.0) + 0.85 * sea(q, vec2(-0.55, 0.12), 6.0)",
+    "          + 0.9 * sea(q, vec2(0.64, -0.16), 34.0) + 0.6 * sea(q, vec2(0.18, 0.3), 18.0);",
+    "  m = clamp(m, 0.0, 1.0) * (0.8 + 0.4 * noise(q * 7.0 + 4.0));",
+    "  float f = -0.24 * m;",
+    "  f += 0.3 * crater(q, vec2(-0.27, 0.0), 0.09);",   // Copernicus
+    "  f += 0.25 * crater(q, vec2(-0.5, 0.03), 0.055);",  // Kepler
+    "  f += 0.3 * crater(q, vec2(-0.15, -0.62), 0.08);",  // Plato
+    "  f += 0.3 * crater(q, vec2(0.72, 0.22), 0.08);",    // Langrenus
+    "  f += 0.35 * crater(q, vec2(-0.12, 0.8), 0.12);",   // Clavius
+    "  f += 0.3 * crater(q, vec2(0.25, 0.62), 0.07);",
+    // Tycho: young and bright, with faint rays.
+    "  vec2 t = q - vec2(-0.06, 0.62);",
+    "  float td = length(t);",
+    "  f += 0.3 * exp(-td * td * 900.0) + 0.06 * pow(abs(sin(atan(t.y, t.x) * 6.0)), 12.0) * exp(-td * 3.0);",
+    // Small craters scattered over the highlands.
+    "  vec2 cg = q * 4.5;",
+    "  vec2 ci = floor(cg);",
+    "  vec2 cc = vec2(hash(ci + 1.3), hash(ci + 8.1)) * 0.6 + 0.2;",
+    "  float cr = 0.12 + 0.12 * hash(ci + 4.4);",
+    "  f += 0.16 * step(0.6, hash(ci + 9.9)) * (1.0 - m) * crater(fract(cg), cc, cr);",
+    "  return f;",
+    "}",
     "float soft(sampler2D tex, vec2 p, float r) {",
     "  vec2 px = 1.0 / uRes;",
     "  float d = r * 0.7071;",
@@ -200,6 +236,7 @@
     "  if (uNight > 0.0) {",
     "    float disc = 1.0 - smoothstep(moonR - 1.2, moonR + 1.2, md);",
     "    vec3 moonCol = vec3(0.92, 0.94, 0.97) * (1.0 - 0.08 * md * md / (moonR * moonR));",
+    "    if (md < moonR * 1.2) moonCol *= 1.0 + moonFace(mo / moonR);",
     "    col = mix(col, moonCol, disc * 0.85 * uNight);",
     "    col += vec3(0.55, 0.68, 0.9) * exp(-md * md / (moonR * moonR * 9.0)) * 0.16 * uNight;",
     "  }",
