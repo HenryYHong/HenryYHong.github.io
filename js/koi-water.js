@@ -3,7 +3,7 @@
 
   // WebGL water for the koi pond. The pond draws fish and lily pads into
   // ordinary 2D canvases; this composites them under a moving water surface:
-  // a pond floor lit by caustics, soft shadows, refraction, sky reflection and
+  // a pond floor in soft sunlight, soft shadows, refraction, sky reflection and
   // sun glints, plus a small wave simulation for ripples you can make by clicking.
 
   var VERT = [
@@ -36,22 +36,6 @@
     "  vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);",
     "  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),",
     "             mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);",
-    "}",
-    // Distance to the nearest edge between drifting cells. Sunlight focused by
-    // the waves gathers along those edges, which is the net of light on a pond floor.
-    "float cells(vec2 p, float t) {",
-    "  vec2 i = floor(p); vec2 f = fract(p);",
-    "  float d1 = 8.0; float d2 = 8.0;",
-    "  for (int y = -1; y <= 1; y++) {",
-    "    for (int x = -1; x <= 1; x++) {",
-    "      vec2 c = vec2(float(x), float(y));",
-    "      vec2 h = vec2(hash(i + c), hash(i + c + 31.7));",
-    "      vec2 r = c + 0.5 + 0.38 * sin(t + 6.2831853 * h) - f;",
-    "      float d = dot(r, r);",
-    "      if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }",
-    "    }",
-    "  }",
-    "  return sqrt(d2) - sqrt(d1);",
     "}",
     "float fbm(vec2 p) {",
     "  float s = 0.0; float a = 0.5;",
@@ -148,30 +132,26 @@
     "  float fishSh = soft(uFish, fp - vec2(11.0, 14.0), 5.5);",
     "  float padSh = soft(uPads, fp - vec2(15.0, 19.0), 7.0);",
     "  float sh = clamp(fishSh * 0.75 + padSh * 0.85, 0.0, 0.9);",
-    // Light on the floor. In a pond it is faint and broken: soft wavy threads
-    // that come and go, over broad patches of sun and shade from the trees.
-    "  vec2 cp = fp * 0.012;",
-    "  cp += (vec2(noise(cp * 0.8 + uTime * 0.025), noise(cp * 0.8 + 7.7 - uTime * 0.02)) - 0.5) * 1.7;",
-    "  float e1 = cells(cp, uTime * 0.09);",
-    "  float thick = 0.7 + 0.6 * noise(cp * 1.3 + vec2(uTime * 0.03, 3.0));",
-    "  vec3 lw = vec3(0.15, 0.17, 0.19) * thick;",
-    "  vec3 c1 = 1.0 - smoothstep(vec3(0.0), lw, vec3(e1));",
-    "  float threads = smoothstep(0.4, 0.75, noise(cp * 0.6 + vec2(uTime * 0.025, 1.0)));",
-    "  vec3 caust = c1 * c1 * threads;",
+    // Light on the floor. A pond floor doesn't show the net of bright lines a
+    // pool does; its light is broad and soft: slow swells of brightness under
+    // patches of sun and shade from the trees.
+    "  vec2 cp = fp * 0.006;",
+    "  cp += (vec2(noise(cp * 0.9 + uTime * 0.02), noise(cp * 0.9 + 7.7 - uTime * 0.015)) - 0.5) * 1.2;",
+    "  float glow = smoothstep(0.45, 0.8, noise(cp * 2.0 + vec2(uTime * 0.03, 1.0)) * 0.6 + noise(cp * 3.7 - vec2(0.0, uTime * 0.025)) * 0.4);",
     "  float dapple = smoothstep(0.3, 0.7, fbm(fp * 0.0035 + vec2(uTime * 0.01, 2.0)));",
-    "  caust *= (mix(0.6, 0.3, uNight) + mix(0.7, 1.0, uNight) * dapple) * ringLight;",
+    "  float caust = glow * (mix(0.6, 0.3, uNight) + mix(0.7, 1.0, uNight) * dapple) * ringLight;",
     // In daylight the sun patches are brighter and the shadows under fish and pads crisper.
     // Shade from trees is mostly a night-mode look; by day it's only a hint.
     "  float lit = mix(0.8, 0.9, day) + mix(0.3, 0.2, day) * dapple - sh * mix(0.36, 0.52, day);",
     "  vec3 col = bed * lit * mix(1.0, ringLight, 0.35);",
     "  vec3 sunCol = mix(vec3(0.74, 0.88, 1.0), vec3(1.0, 0.97, 0.86), day);",
-    "  col += sunCol * caust * (1.0 - sh) * mix(0.13, 0.06, vis) * (1.0 + 0.8 * day);",
+    "  col += sunCol * caust * (1.0 - sh) * mix(0.1, 0.05, vis) * (1.0 + 0.35 * day);",
 
     // Fish, a little shallower: bent less, lit more softly, tinted by the water.
     "  vec2 fishP = p + g * 0.12;",
     "  vec4 fish = texture2D(uFish, fishP / uRes);",
     "  float padOnFish = soft(uPads, fishP - vec2(6.0, 8.0), 4.0);",
-    "  float fishLit = 1.0 - smoothstep(0.0, 0.3, e1);",
+    "  float fishLit = glow;",
     "  vec3 fc = fish.rgb * (0.9 + 0.22 * fishLit) * (1.0 - 0.45 * padOnFish);",
     "  fc = mix(fc, mix(vec3(0.14, 0.32, 0.48), vec3(0.07, 0.2, 0.38), uNight) * fish.a, 0.1);",
     "  col = col * (1.0 - fish.a) + fc;",
