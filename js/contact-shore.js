@@ -2,27 +2,21 @@
   "use strict";
 
   // The far side of the koi pond behind the contact section: the sky the pond
-  // reflects, soft layers of misty hills, and a weeping willow at the edge
-  // swaying in the breeze. Fireflies and a few stars at night; by day, a
-  // dragonfly now and then and a little pollen in the light.
+  // reflects over soft layers of misty hills. Fireflies and a few stars at
+  // night; by day, a dragonfly now and then and a little pollen in the light.
 
   var TAU = Math.PI * 2;
-  var NARROW = 760; // below this width the garden uses its phone layout
 
   // Colors by day and in moonlight: [r, g, b] or [r, g, b, alpha].
   var DAY = {
     hillFar: [66, 106, 146, 0.3],
     hillMid: [50, 88, 126, 0.48],
     hillNear: [34, 64, 94, 1],
-    trunk: [52, 50, 46],
-    willow: [120, 170, 88],
   };
   var NIGHT = {
     hillFar: [16, 34, 66, 0.5],
     hillMid: [11, 26, 54, 0.72],
     hillNear: [7, 16, 34, 1],
-    trunk: [20, 22, 26],
-    willow: [46, 80, 58],
   };
 
   function rand(a, b) {
@@ -36,12 +30,6 @@
   function css(c, alpha) {
     var a = (c.length > 3 ? c[3] : 1) * (alpha == null ? 1 : alpha);
     return "rgba(" + Math.round(c[0]) + ", " + Math.round(c[1]) + ", " + Math.round(c[2]) + ", " + a.toFixed(3) + ")";
-  }
-
-  function mix(a, b, t) {
-    return a.map(function (v, i) {
-      return v + ((b[i] == null ? v : b[i]) - v) * t;
-    });
   }
 
   // Seeded random numbers, so the garden looks the same every visit.
@@ -113,17 +101,14 @@
     if (!this.running) this.draw();
   };
 
-  // Where everything goes. The middle stays low and open under the heading
-  // and buttons; the willow stands on the right.
+  // Where everything goes. The hills stay low in the middle, under the
+  // heading and buttons.
   ContactShore.prototype.layout = function () {
     var w = this.w;
     var h = this.h;
     var u = h / 254;
-    var narrow = w < NARROW;
     var rnd = seeded(1013);
     var i;
-    this.u = u;
-    this.narrow = narrow;
     // Three rows of hills, lower in the middle under the heading and buttons:
     // two misty ones in the distance and a darker one near the water.
     this.hills = [
@@ -131,23 +116,6 @@
       { base: h - 36 * u, amp: 42 * u, f: [0.009, 0.023, 0.053], p: [1.7, 0.4, 3.2], color: "hillMid", mist: true },
       { base: h - 12 * u, amp: 26 * u, f: [0.011, 0.029, 0.067], p: [2.6, 1.1, 0.7], color: "hillNear", mist: false },
     ];
-
-    // The willow stands at the right edge; its branches hang in from above.
-    var x0 = w * (narrow ? 0.8 : 0.79);
-    this.trunk = { x: w - 22 * u, top: -10 };
-    this.strands = [];
-    for (i = 0; i < (narrow ? 20 : 48); i++) {
-      var ax = x0 + (w + 12 - x0) * Math.pow(rnd(), 0.8);
-      var edge = (ax - x0) / (w - x0);
-      this.strands.push({
-        x: ax,
-        y: (-16 + (1 - edge) * 20 + rnd() * 10) * u,
-        len: (50 + rnd() * 150) * u * (0.45 + 0.55 * edge) * (narrow ? 0.8 : 1),
-        phase: rnd() * TAU,
-        curl: -0.35 + rnd() * 0.45,
-        dark: rnd() < 0.45,
-      });
-    }
 
     var count = Math.round(clamp(w / 75, 6, 18));
     this.fireflies = [];
@@ -172,8 +140,7 @@
     }
   };
 
-  // The hills and the willow's trunk never move, so they're painted once for
-  // day and once for night. The trunk stands behind the nearest hills.
+  // The hills never move, so they're painted once for day and once for night.
   ContactShore.prototype.paintLayers = function () {
     var self = this;
     ["day", "night"].forEach(function (when) {
@@ -183,16 +150,14 @@
       c.height = self.canvas.height;
       var ctx = c.getContext("2d");
       ctx.setTransform(self.dpr, 0, 0, self.dpr, 0, 0);
-      self.paintHills(ctx, P, self.hills.slice(0, 2));
-      self.paintTrunk(ctx, P);
-      self.paintHills(ctx, P, self.hills.slice(2));
+      self.paintHills(ctx, P);
     });
   };
 
-  ContactShore.prototype.paintHills = function (ctx, P, hills) {
+  ContactShore.prototype.paintHills = function (ctx, P) {
     var w = this.w;
     var h = this.h;
-    hills.forEach(function (hill) {
+    this.hills.forEach(function (hill) {
       var top = h;
       var pts = [];
       for (var x = -8; x <= w + 8; x += 6) {
@@ -220,60 +185,6 @@
       ctx.lineTo(w + 8, h);
       ctx.closePath();
       ctx.fill();
-    });
-  };
-
-  ContactShore.prototype.paintTrunk = function (ctx, P) {
-    var u = this.u;
-    var t = this.trunk;
-    var base = this.h;
-    ctx.fillStyle = css(P.trunk);
-    ctx.beginPath();
-    ctx.moveTo(t.x - 7 * u, base);
-    ctx.quadraticCurveTo(t.x - 12 * u, base * 0.5, t.x - 2 * u, t.top);
-    ctx.lineTo(t.x + 9 * u, t.top);
-    ctx.quadraticCurveTo(t.x + 2 * u, base * 0.5, t.x + 7 * u, base);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = css(P.trunk);
-    ctx.lineCap = "round";
-    ctx.lineWidth = 3.5 * u;
-    // On phones the limbs stay short, clear of the heading.
-    var reach = this.narrow ? 0.45 : 1;
-    ctx.beginPath();
-    ctx.moveTo(t.x - 6 * u, base * 0.42);
-    ctx.quadraticCurveTo(t.x - 40 * u * reach, base * 0.2, t.x - 80 * u * reach, 8 * u);
-    ctx.moveTo(t.x - 4 * u, base * 0.22);
-    ctx.quadraticCurveTo(t.x - 24 * u * reach, 6 * u, t.x - 46 * u * reach, -4 * u);
-    ctx.stroke();
-  };
-
-  // The willow's long branches hang and sway, little leaves along each one,
-  // in two shades so some branches seem nearer than others.
-  ContactShore.prototype.drawWillow = function (ctx, P) {
-    var u = this.u;
-    var t = this.time;
-    var still = this.still;
-    var gust = 0.7 + 0.3 * Math.sin(t * 0.33);
-    var near = new Path2D();
-    var far = new Path2D();
-    this.strands.forEach(function (s) {
-      var sway = still ? 0 : (Math.sin(t * 0.7 + s.phase) * 6 + Math.sin(t * 1.7 + s.phase * 1.3) * 2) * (s.len / 150) * gust;
-      var tipX = s.x + sway + s.curl * s.len * 0.35;
-      var tipY = s.y + s.len;
-      var path = s.dark ? far : near;
-      path.moveTo(s.x, s.y);
-      path.bezierCurveTo(s.x + sway * 0.05, s.y + s.len * 0.35, s.x + sway * 0.5 + s.curl * s.len * 0.05, s.y + s.len * 0.75, tipX, tipY);
-    });
-    ctx.lineCap = "round";
-    [[far, 0.55], [near, 0.95]].forEach(function (pair) {
-      ctx.strokeStyle = css(pair[1] < 0.9 ? mix(P.willow, [30, 60, 40], 0.35) : P.willow, pair[1]);
-      ctx.lineWidth = 0.7 * u;
-      ctx.stroke(pair[0]);
-      ctx.setLineDash([2.2 * u, 2.6 * u]);
-      ctx.lineWidth = 2.3 * u;
-      ctx.stroke(pair[0]);
-      ctx.setLineDash([]);
     });
   };
 
@@ -392,7 +303,7 @@
     var y = d.y + (hovering ? Math.sin(t * 7.3) * 1.5 : 0);
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(d.face * 1.25, 1.25);
+    ctx.scale(d.face * 0.85, 0.85);
     ctx.rotate(hovering ? 0 : -0.08);
     ctx.globalAlpha = 1 - this.night;
 
@@ -506,14 +417,12 @@
   ContactShore.prototype.draw = function () {
     var ctx = this.ctx;
     var n = this.night;
-    var P = { willow: mix(DAY.willow, NIGHT.willow, n) };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     if (n > 0) this.drawStars(ctx);
     this.drawLayer(ctx);
     if (n < 1) this.drawMotes(ctx);
-    this.drawWillow(ctx, P);
     if (this.dragonfly) this.drawDragonfly(ctx);
     if (n > 0) this.drawFireflies(ctx);
   };
