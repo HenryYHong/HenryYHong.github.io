@@ -153,6 +153,10 @@
     this.foodCtx = null;
     this.foodShown = false;
     this.foodDirty = false;
+    this.skyLayer = null;
+    this.skyCtx = null;
+    this.skyShown = false;
+    this.skyDirty = false;
     this.flyover = null;
     this.nextFlyover = 0;
     this.top = 0;
@@ -190,6 +194,8 @@
       this.padCtx = this.padLayer.getContext("2d");
       this.foodLayer = document.createElement("canvas");
       this.foodCtx = this.foodLayer.getContext("2d");
+      this.skyLayer = document.createElement("canvas");
+      this.skyCtx = this.skyLayer.getContext("2d");
       var self = this;
       this.water.onRestore = function () {
         self.paintPads();
@@ -310,6 +316,10 @@
       this.padCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       this.foodCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       this.foodShown = true;
+      // The birds' reflections are soft, so their layer is drawn at 1x.
+      this.skyLayer.width = w;
+      this.skyLayer.height = h;
+      this.skyShown = true;
       this.water.buildMask(this.lilyPads);
       this.paintPads();
     } else {
@@ -656,18 +666,16 @@
     var now = this.time || 0;
 
     // With the water on, food floats on the surface over the moon and clouds
-    // reflected in it, so it gets its own layer, along with birds
-    // reflected as they pass over. That layer is only redrawn and sent to the
-    // shader while something is on it, plus once more to clear it.
+    // reflected in it, so it gets its own layer. That layer is only redrawn
+    // and sent to the shader while something is on it, plus once more to clear it.
     this.foodDirty = false;
     if (this.foodCtx) {
-      var busy = this.foodPellets.length > 0 || !!this.flyover;
+      var busy = this.foodPellets.length > 0;
       if (!busy && !this.foodShown) return;
       ctx = this.foodCtx;
       ctx.clearRect(0, 0, this.w, this.h);
       this.foodShown = busy;
       this.foodDirty = true;
-      if (this.flyover) this.drawFlyover(ctx);
     }
 
     ctx.save();
@@ -703,6 +711,17 @@
       ctx.fill();
     });
     ctx.restore();
+  };
+
+  // Birds passing over go on a layer of their own, which the water reflects
+  // like the clouds. Like the food layer, it's only sent while it changes.
+  KoiPond.prototype.drawSky = function () {
+    this.skyDirty = false;
+    if (!this.skyCtx || (!this.flyover && !this.skyShown)) return;
+    this.skyCtx.clearRect(0, 0, this.w, this.h);
+    this.skyShown = !!this.flyover;
+    this.skyDirty = true;
+    if (this.flyover) this.drawFlyover(this.skyCtx);
   };
 
   KoiPond.prototype.init = function (callback) {
@@ -808,61 +827,21 @@
     var hx = f.x0 + f.dirX * f.speed * t;
     var hy = f.y0 + f.dirY * f.speed * t;
     var ang = Math.atan2(f.dirY, f.dirX);
+    // Each bird is one silhouette; the water decides how dark it looks.
     ctx.save();
-    // Birds seen from below in the reflection: dark shapes whose wings
-    // narrow and widen as they flap.
-    ctx.fillStyle = "rgba(18, 38, 56, 0.5)";
+    ctx.fillStyle = "#000";
     f.birds.forEach(function (b) {
-      var x = hx + f.dirX * b.dx - f.dirY * b.dy;
-      var y = hy + f.dirY * b.dx + f.dirX * b.dy;
       ctx.save();
-      ctx.translate(x, y);
+      ctx.translate(hx + f.dirX * b.dx - f.dirY * b.dy, hy + f.dirY * b.dx + f.dirX * b.dy);
       ctx.rotate(ang);
-      ctx.scale(1.5, 1.5);
       if (f.kind === "heron") {
-        var beat = 0.55 + 0.45 * Math.abs(Math.cos(t * 3.2));
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 11, 3, 0, 0, TAU);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(6, -2);
-        ctx.quadraticCurveTo(0, -30 * beat, -10, -30 * beat);
-        ctx.quadraticCurveTo(-12, -14 * beat, -6, -2);
-        ctx.closePath();
-        ctx.moveTo(6, 2);
-        ctx.quadraticCurveTo(0, 30 * beat, -10, 30 * beat);
-        ctx.quadraticCurveTo(-12, 14 * beat, -6, 2);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = "rgba(18, 38, 56, 0.5)";
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(-10, -1);
-        ctx.lineTo(-24, -2);
-        ctx.moveTo(-10, 1);
-        ctx.lineTo(-24, 2);
-        ctx.stroke();
+        ctx.scale(1.25, 1.25);
+        fillOutline(ctx, heronOutline(t * 9 + b.phase));
       } else {
-        var span = 0.5 + 0.5 * Math.abs(Math.cos(t * 13 + b.phase));
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 5, 1.6, 0, 0, TAU);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(2.5, -1);
-        ctx.quadraticCurveTo(-1, -6 * span, -5, -12 * span);
-        ctx.quadraticCurveTo(-2, -5 * span, -2.5, -1);
-        ctx.closePath();
-        ctx.moveTo(2.5, 1);
-        ctx.quadraticCurveTo(-1, 6 * span, -5, 12 * span);
-        ctx.quadraticCurveTo(-2, 5 * span, -2.5, 1);
-        ctx.closePath();
-        ctx.moveTo(-4, -0.6);
-        ctx.lineTo(-9, -2.6);
-        ctx.lineTo(-6.5, 0);
-        ctx.lineTo(-9, 2.6);
-        ctx.lineTo(-4, 0.6);
-        ctx.closePath();
-        ctx.fill();
+        ctx.scale(1.3, 1.3);
+        // Bursts of quick wingbeats between glides.
+        var beat = Math.max(0, Math.min(1, (Math.sin(t * 1.1 + b.phase * 2) + 0.2) * 2));
+        fillOutline(ctx, swallowOutline(t * 30 + b.phase * 5, beat));
       }
       ctx.restore();
     });
@@ -885,6 +864,121 @@
       this.drawWater();
     }
   };
+
+  // A heron seen from below, flying toward +x: broad, bowed wings with
+  // fingered tips, the neck drawn back so only the head and bill show ahead
+  // of them, and long legs trailing past the tail. Returns one side of the
+  // outline, bill to tail, as [x, y, sharp] points; phase drives the slow,
+  // deep wingbeat, with the hand swept back on the upstroke.
+  function heronOutline(phase) {
+    var lift = 0.62 * Math.sin(phase) - 0.08;
+    var fold = Math.pow(0.5 + 0.5 * Math.cos(phase), 2);
+    var arm = 14 * Math.cos(lift);
+    var hand = 20 * Math.cos(lift * 1.25) * (1 - 0.12 * fold);
+    var back = 4 * fold;
+    var wrist = 3 + arm;
+    var side = [
+      [21, 0, true],
+      [15.6, 1],
+      [14.6, 2],
+      [12.6, 2.2],
+      [11.2, 3],
+      [8.5, 3.9],
+      [5.5, 3.6],
+      [7.2, 3 + arm * 0.5],
+      [8 + back * 0.2, wrist],
+      [5.5 - back * 0.4, wrist + hand * 0.45],
+      [1 - back * 0.8, wrist + hand * 0.8],
+      [-2.5 - back, wrist + hand * 0.97],
+      [-4.5 - back, wrist + hand, true],
+      [-5.4 - back, wrist + hand * 0.92, true],
+      [-6.8 - back, wrist + hand * 0.95, true],
+      [-7.6 - back, wrist + hand * 0.85, true],
+      [-9 - back, wrist + hand * 0.86, true],
+      [-9.4 - back * 0.9, wrist + hand * 0.76, true],
+      [-10.6 - back * 0.8, wrist + hand * 0.74, true],
+      [-10.5 - back * 0.5, wrist + hand * 0.45],
+      [-9.5, wrist],
+      [-9, 3 + arm * 0.4],
+      [-8, 3],
+      [-11, 2.6],
+      [-14, 2.2],
+      [-14.5, 1.3],
+      [-16, 1.1],
+      [-26, 1],
+      [-28, 1.6],
+      [-29.5, 0.9, true],
+      [-27, 0.3],
+      [-17, 0.05],
+      [-16.5, 0, true],
+    ];
+    var mirror = side.slice(1, -1).reverse().map(function (p) {
+      return [p[0], -p[1], p[2]];
+    });
+    return side.concat(mirror);
+  }
+
+  // A swallow seen from below, flying toward +x: long pointed wings and a
+  // deeply forked tail. `beat` is 1 while it flaps and 0 while it glides,
+  // wings swept back.
+  function swallowOutline(phase, beat) {
+    var lift = 0.7 * Math.sin(phase) * beat;
+    var fold = Math.pow(0.5 + 0.5 * Math.cos(phase), 2) * beat;
+    var arm = 4 * Math.cos(lift);
+    var hand = 9 * Math.cos(lift * 1.3) * (1 - 0.2 * fold);
+    var back = 2.5 * (1 - beat) + 0.5 + 3 * fold;
+    var wrist = 1.6 + arm;
+    var side = [
+      [5.6, 0],
+      [5.2, 0.9],
+      [4, 1.5],
+      [2.6, 1.6],
+      [3, 1.6 + arm * 0.5],
+      [2.6 - back * 0.3, wrist],
+      [0.5 - back * 0.7, wrist + hand * 0.55],
+      [-3.5 - back, wrist + hand, true],
+      [-2.2 - back * 0.8, wrist + hand * 0.7],
+      [-1.2 - back * 0.4, wrist + hand * 0.3],
+      [-1.4, 1.6 + arm * 0.5],
+      [-2.2, 1.4],
+      [-3.6, 1.1],
+      [-4.6, 0.9],
+      [-6.2, 1.5],
+      [-12.5, 2.6, true],
+      [-6.8, 0.8],
+      [-5.4, 0.15],
+      [-5.2, 0, true],
+    ];
+    var mirror = side.slice(1, -1).reverse().map(function (p) {
+      return [p[0], -p[1], p[2]];
+    });
+    return side.concat(mirror);
+  }
+
+  // Fills a closed outline in one path, rounding every point but the sharp ones.
+  function fillOutline(ctx, pts) {
+    var n = pts.length;
+    function mid(i) {
+      var a = pts[i % n];
+      var b = pts[(i + 1) % n];
+      return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    }
+    var m = mid(n - 1);
+    ctx.beginPath();
+    ctx.moveTo(m[0], m[1]);
+    for (var i = 0; i < n; i++) {
+      var p = pts[i];
+      m = mid(i);
+      if (p[2]) {
+        ctx.lineTo(p[0], p[1]);
+        ctx.lineTo(m[0], m[1]);
+      } else {
+        ctx.quadraticCurveTo(p[0], p[1], m[0], m[1]);
+      }
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
 
   function lerpAngle(a, b, t) {
     return a + angleDelta(a, b) * t;
@@ -1981,10 +2075,16 @@
     });
 
     this.drawFood();
+    this.drawSky();
 
     if (this.water) {
       this.water.step(this.dt);
-      this.water.render(timestamp / 1000, this.layer, this.foodDirty ? this.foodLayer : null);
+      this.water.render(
+        timestamp / 1000,
+        this.layer,
+        this.foodDirty ? this.foodLayer : null,
+        this.skyDirty ? this.skyLayer : null
+      );
     } else {
       this.ctx.drawImage(this.padLayer, 0, 0, this.w, this.h);
       this.drawRipples();

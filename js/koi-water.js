@@ -59,6 +59,7 @@
     "uniform sampler2D uMoon;",
     "uniform sampler2D uFishShade;",
     "uniform sampler2D uPadShade;",
+    "uniform sampler2D uSky;",
     "uniform float uMoonReady;",
 
     "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
@@ -241,6 +242,11 @@
     "  vec3 cloudCol = mix(vec3(0.97, 0.98, 1.0), vec3(0.42, 0.5, 0.66), uNight);",
     "  float mist = cloud * mix(0.42, 0.16, uNight);",
     "  col = mix(col, cloudCol, mist);",
+    // Birds overhead, reflected in front of the clouds: soft, and darkening the
+    // water. The water doesn't bend them; a warping shape crossing the screen
+    // is hard to watch.
+    "  float bird = soft(uSky, p, 1.1);",
+    "  col = mix(col, col * vec3(0.52, 0.58, 0.66), bird * 0.55);",
     // Sun glints: tiny ripple facets that tip toward the sun for an instant.
     // A few random points per patch of water, each flashing on its own beat.
     "  vec2 gp = p / 7.0;",
@@ -424,7 +430,7 @@
     }, this);
 
     var u = {};
-    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade", "uFood"].forEach(function (name) {
+    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade", "uFood", "uSky"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
     });
     this.u = u;
@@ -435,6 +441,7 @@
     gl.uniform1i(u.uFishShade, 4);
     gl.uniform1i(u.uPadShade, 5);
     gl.uniform1i(u.uFood, 7);
+    gl.uniform1i(u.uSky, 6);
 
     this.fishTex = this.makeTexture(0);
     this.padTex = this.makeTexture(1);
@@ -446,6 +453,9 @@
     this.fishShade = this.makeTarget(4);
     this.padShade = this.makeTarget(5);
     this.blurMid = this.makeTarget(6);
+    // Birds share unit 6 with the half-done blur, which only the blur reads.
+    this.skyTex = this.makeTexture(6);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
     var empty = new Uint8Array([0, 0, 0, 0]);
     gl.activeTexture(gl.TEXTURE1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, empty);
@@ -514,6 +524,8 @@
     var spacing = Math.max(2, (3 * sigmaDev) / BLUR_TAPS);
     var fall = -(spacing * spacing) / (2 * sigmaDev * sigmaDev);
     var mid = this.blurMid;
+    gl.activeTexture(gl.TEXTURE0 + mid.unit);
+    gl.bindTexture(gl.TEXTURE_2D, mid.tex);
     this.sizeTarget(mid, target.w, srcH);
     gl.useProgram(this.blurProg);
     gl.uniform1f(bu.uFall, fall);
@@ -534,6 +546,8 @@
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.useProgram(this.prog);
+    gl.activeTexture(gl.TEXTURE0 + mid.unit);
+    gl.bindTexture(gl.TEXTURE_2D, this.skyTex);
   };
 
   KoiWater.prototype.resize = function (w, h, dpr, top) {
@@ -740,8 +754,8 @@
     if (this.w) this.blurInto(this.padShade, 1, padCanvas, PAD_BLUR);
   };
 
-  // `foodCanvas` is passed only when the food layer has changed.
-  KoiWater.prototype.render = function (seconds, fishCanvas, foodCanvas) {
+  // `foodCanvas` and `skyCanvas` are passed only when those layers have changed.
+  KoiWater.prototype.render = function (seconds, fishCanvas, foodCanvas, skyCanvas) {
     if (this.lost || !this.w) return;
     var gl = this.gl;
     var u = this.u;
@@ -750,6 +764,7 @@
       this.blurInto(this.fishShade, 0, fishCanvas, FISH_BLUR);
     }
     if (foodCanvas) this.uploadCanvas(7, foodCanvas);
+    if (skyCanvas) this.uploadCanvas(6, skyCanvas);
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.uniform2f(u.uRes, this.w, this.h);
     gl.uniform1f(u.uDpr, this.canvas.width / this.w);
@@ -780,6 +795,7 @@
       gl.deleteTexture(this.rippleTex);
       gl.deleteTexture(this.moonTex);
       gl.deleteTexture(this.foodTex);
+      gl.deleteTexture(this.skyTex);
       [this.fishShade, this.padShade, this.blurMid].forEach(function (target) {
         gl.deleteTexture(target.tex);
         gl.deleteFramebuffer(target.fb);
