@@ -235,11 +235,6 @@
     "    sky *= smoothstep(moonR, moonR * 1.3, md) * mix(0.6, 1.0, smoothstep(0.6, 1.4, length(mid)));",
     "    col += vec3(0.85, 0.9, 1.0) * sky * uNight;",
     "  }",
-    // By day the sun's reflection sits where the moon's does at night: a soft
-    // glare with a bright middle that ripples bend, and more sparkle around it.
-    "  float sunD = length(p - moonC + rg * 0.4 + dropG * 2.0);",
-    "  float glare = exp(-sunD * sunD / (moonR * moonR * 30.0)) * day;",
-    "  col += vec3(1.0, 0.97, 0.88) * (glare * 0.22 + exp(-sunD * sunD / (moonR * moonR * 1.2)) * 0.45 * day);",
     // Clouds reflected in the water, drifting right with the wind at about
     // 15 px a second: soft and misty at the edges, a little stretched along the
     // way they drift, and slowly changing shape. The swell bends them slightly
@@ -261,9 +256,9 @@
     "  vec2 gc = vec2(hash(gi + 11.3), hash(gi + 27.1)) * 0.7 + 0.15;",
     "  vec2 gd = (fract(gp) - gc) * 7.0;",
     "  float flash = pow(max(sin(uTime * (0.8 + 1.2 * gh) + gh * 40.0), 0.0), 16.0);",
-    "  float spark = flash * step(0.87 - 0.3 * glare, hash(gi + 51.9)) * exp(-dot(gd, gd) * 0.9);",
+    "  float spark = flash * step(0.87, hash(gi + 51.9)) * exp(-dot(gd, gd) * 0.9);",
     // At night there are fewer glints, and none on the moon itself.
-    "  float gate = mix(breeze + glare * 1.5, breeze * 0.35 * smoothstep(moonR, moonR * 1.6, md), uNight);",
+    "  float gate = mix(breeze, breeze * 0.35 * smoothstep(moonR, moonR * 1.6, md), uNight);",
     "  col += vec3(1.0, 0.97, 0.9) * spark * gate * mix(2.2, 1.8, uNight);",
 
     // Food floats on the surface, over the reflections, and the clouds haze it too.
