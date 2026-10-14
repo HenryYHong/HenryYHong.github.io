@@ -278,6 +278,10 @@
     if (w <= 0) w = window.innerWidth;
     if (h <= 0) h = 320;
 
+    // Out of the page's flow even if the stylesheet fails to load; otherwise a
+    // canvas sized to the masthead would make it taller on every resize.
+    this.canvas.style.position = "absolute";
+    this.canvas.style.left = this.canvas.style.top = "0";
     this.canvas.style.width = w + "px";
     this.canvas.style.height = h + "px";
     this.w = w;

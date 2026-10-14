@@ -111,7 +111,22 @@
     return document.documentElement.getAttribute("data-theme") === "dark";
   }
 
+  // Both layers sit behind and above the section's content without taking up
+  // space, even if the stylesheet fails to load. In the page's flow, a canvas
+  // sized to its section would make the section taller on every resize.
+  function pin(canvas, z) {
+    var s = canvas.style;
+    s.position = "absolute";
+    s.left = s.top = "0";
+    s.width = s.height = "100%";
+    s.display = "block";
+    s.pointerEvents = "none";
+    s.zIndex = z;
+  }
+
   function ContactShore(section, canvas, front) {
+    pin(canvas, "0");
+    pin(front, "3");
     this.section = section;
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
