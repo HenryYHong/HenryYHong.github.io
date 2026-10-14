@@ -152,12 +152,12 @@
     "  float day = 1.0 - uNight;",
     "  vec3 shallow = mix(vec3(0.38, 0.65, 0.86), vec3(0.14, 0.34, 0.56), uNight);",
     "  vec3 deep = mix(vec3(0.17, 0.42, 0.66), vec3(0.04, 0.12, 0.29), uNight);",
-    // By day the floor is more even: fewer deep patches and less mud.
-    "  vec3 bed = mix(shallow, deep, clamp(vis * 0.9 + (big - 0.5) * mix(0.2, 0.5, uNight), 0.0, 1.0));",
-    "  bed *= mix(0.93, 0.86, uNight) + mix(0.1, 0.2, uNight) * fbm(fp * 0.02 + vec2(9.2, 4.4));",
+    // By day the floor is even: hardly any deep patches, mottling or mud.
+    "  vec3 bed = mix(shallow, deep, clamp(vis * 0.9 + (big - 0.5) * mix(0.1, 0.5, uNight), 0.0, 1.0));",
+    "  bed *= mix(0.955, 0.86, uNight) + mix(0.05, 0.2, uNight) * fbm(fp * 0.02 + vec2(9.2, 4.4));",
     "  float mud = smoothstep(0.45, 0.75, fbm(fp * 0.006 + vec2(1.9, 7.3)));",
     "  vec3 silt = mix(vec3(0.3, 0.38, 0.48), vec3(0.16, 0.22, 0.32), uNight);",
-    "  bed = mix(bed, silt * (1.1 - vis * 0.6), mud * mix(0.08, 0.25, uNight));",
+    "  bed = mix(bed, silt * (1.1 - vis * 0.6), mud * mix(0.03, 0.25, uNight));",
 
     // Shadows land well away from what casts them and spread out on the way
     // down, since the floor is deep.
@@ -172,12 +172,12 @@
     "  float glow = smoothstep(0.45, 0.8, noise(cp * 2.0 + vec2(uTime * 0.03, 1.0)) * 0.6 + noise(cp * 3.7 - vec2(0.0, uTime * 0.025)) * 0.4);",
     "  float dapple = smoothstep(0.3, 0.7, fbm(fp * 0.0035 + vec2(uTime * 0.01, 2.0)));",
     "  float caust = glow * (mix(0.6, 0.3, uNight) + mix(0.7, 1.0, uNight) * dapple) * ringLight;",
-    // In daylight the sun patches are brighter and the shadows under fish and pads crisper.
-    // Shade from trees is mostly a night-mode look; by day it's only a hint.
-    "  float lit = mix(0.8, 0.9, day) + mix(0.3, 0.2, day) * dapple - sh * mix(0.36, 0.52, day);",
+    // In daylight the shadows under fish and pads are crisper. Patches of sun
+    // and shade are mostly a night-mode look; by day the light is even.
+    "  float lit = mix(0.8, 0.965, day) + mix(0.3, 0.07, day) * dapple - sh * mix(0.36, 0.52, day);",
     "  vec3 col = bed * lit * mix(1.0, ringLight, 0.35);",
     "  vec3 sunCol = mix(vec3(0.74, 0.88, 1.0), vec3(1.0, 0.97, 0.86), day);",
-    "  col += sunCol * caust * (1.0 - sh) * mix(0.05, 0.025, vis) * (1.0 + 0.35 * day);",
+    "  col += sunCol * caust * (1.0 - sh) * mix(0.05, 0.025, vis) * mix(1.0, 0.45, day);",
 
     // Fish, a little shallower: bent less, lit more softly, tinted by the water.
     "  vec2 fishP = p + g * 0.12;",
