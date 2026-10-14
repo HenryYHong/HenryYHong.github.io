@@ -18,6 +18,7 @@
   var KOI_PALETTES = [
     {
       id: "kohaku",
+      colorGroup: "white",
       bodyStops: ["#ded8cc", "#fff9ee", "#f4eadb", "#d0c5b5"],
       scaleColor: "rgba(126, 114, 98, 0.075)",
       dorsalColor: "rgba(230, 224, 214, 0.7)",
@@ -35,7 +36,7 @@
     },
     {
       id: "kohaku-deep",
-      colorGroup: "kohaku",
+      colorGroup: "white",
       bodyStops: ["#ddd8cf", "#fffaf0", "#f2eadf", "#cbc1b3"],
       scaleColor: "rgba(120, 112, 102, 0.075)",
       dorsalColor: "rgba(228, 224, 216, 0.7)",
@@ -53,6 +54,7 @@
     },
     {
       id: "yamabuki",
+      colorGroup: "gold",
       bodyStops: ["#d7ac43", "#ffe8a1", "#e0a534", "#a96f1b"],
       scaleColor: "rgba(92, 58, 20, 0.09)",
       dorsalColor: "rgba(235, 182, 68, 0.66)",
@@ -79,6 +81,7 @@
     },
     {
       id: "platinum",
+      colorGroup: "white",
       bodyStops: ["#ddd8cf", "#fffaf2", "#f2eadf", "#cfc5b7"],
       scaleColor: "rgba(120, 112, 102, 0.065)",
       dorsalColor: "rgba(232, 226, 216, 0.66)",
@@ -92,6 +95,7 @@
     },
     {
       id: "kin",
+      colorGroup: "gold",
       bodyStops: ["#c8891f", "#ffd36a", "#d99a28", "#965f16"],
       scaleColor: "rgba(78, 45, 12, 0.085)",
       dorsalColor: "rgba(218, 146, 36, 0.62)",
@@ -105,6 +109,8 @@
     },
   ];
 
+  // Palettes that look alike share a color group: white bodies (with or without
+  // red patches), gold, and orange. No more than three fish of one color.
   var MAX_FISH_PER_PALETTE = 3;
   // 60 Hz reference (iPad Air and most desktops); movement is delta-time scaled.
   var REF_FPS = 60;
@@ -429,7 +435,17 @@
       });
     }
 
-    return pick(eligible);
+    // Pick a color first, then one of its palettes, so each color is as likely
+    // as the others however many palettes it has.
+    var groups = [];
+    eligible.forEach(function (palette) {
+      var group = getColorGroup(palette);
+      if (groups.indexOf(group) < 0) groups.push(group);
+    });
+    var chosen = pick(groups);
+    return pick(eligible.filter(function (palette) {
+      return getColorGroup(palette) === chosen;
+    }));
   };
 
   KoiPond.prototype.createKoiPatches = function (palette) {
