@@ -143,6 +143,10 @@
     this.layer = null;
     this.padLayer = null;
     this.padCtx = null;
+    this.foodLayer = null;
+    this.foodCtx = null;
+    this.foodShown = false;
+    this.foodDirty = false;
     this.top = 0;
     this.fishes = [];
     this.foodPellets = [];
@@ -176,6 +180,8 @@
       this.padLayer = document.createElement("canvas");
       this.ctx = this.layer.getContext("2d");
       this.padCtx = this.padLayer.getContext("2d");
+      this.foodLayer = document.createElement("canvas");
+      this.foodCtx = this.foodLayer.getContext("2d");
       var self = this;
       this.water.onRestore = function () {
         self.paintPads();
@@ -286,8 +292,12 @@
       this.layer.height = this.canvas.height;
       this.padLayer.width = this.canvas.width;
       this.padLayer.height = this.canvas.height;
+      this.foodLayer.width = this.canvas.width;
+      this.foodLayer.height = this.canvas.height;
       this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       this.padCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.foodCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.foodShown = true;
       this.water.buildMask(this.lilyPads);
       this.paintPads();
     } else {
@@ -622,6 +632,18 @@
   KoiPond.prototype.drawFood = function () {
     var ctx = this.ctx;
     var now = this.time || 0;
+
+    // With the water on, food floats on the surface over the moon and clouds
+    // reflected in it, so it gets its own layer. That layer is only redrawn and
+    // sent to the shader while there is food, plus once more to clear it.
+    this.foodDirty = false;
+    if (this.foodCtx) {
+      if (!this.foodPellets.length && !this.foodShown) return;
+      ctx = this.foodCtx;
+      ctx.clearRect(0, 0, this.w, this.h);
+      this.foodShown = this.foodPellets.length > 0;
+      this.foodDirty = true;
+    }
 
     ctx.save();
     this.foodPellets.forEach(function (pellet) {
@@ -1820,7 +1842,7 @@
 
     if (this.water) {
       this.water.step(this.dt);
-      this.water.render(timestamp / 1000, this.layer);
+      this.water.render(timestamp / 1000, this.layer, this.foodDirty ? this.foodLayer : null);
     } else {
       this.ctx.drawImage(this.padLayer, 0, 0, this.w, this.h);
       this.drawRipples();

@@ -53,6 +53,7 @@
     "uniform float uCell;",
     "uniform sampler2D uFish;",
     "uniform sampler2D uPads;",
+    "uniform sampler2D uFood;",
     "uniform sampler2D uRipple;",
     "uniform vec4 uDrops[12];",
     "uniform sampler2D uMoon;",
@@ -241,6 +242,10 @@
     "  float gate = mix(breeze, breeze * 0.35 * smoothstep(moonR, moonR * 1.6, md), uNight);",
     "  col += vec3(1.0, 0.97, 0.9) * spark * gate * mix(2.2, 1.8, uNight);",
 
+    // Food floats on the surface, over the reflections, and the clouds haze it too.
+    "  vec4 food = texture2D(uFood, uv);",
+    "  col = col * (1.0 - food.a) + mix(food.rgb, cloudCol * food.a, mist);",
+
     // Lily pads float on top. Water hugs their edges in a thin bright line.
     // A pad under a cloud takes on the same misty haze as the water around it.
     "  vec4 pad = texture2D(uPads, uv);",
@@ -407,7 +412,7 @@
     }, this);
 
     var u = {};
-    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade"].forEach(function (name) {
+    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade", "uFood"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
     });
     this.u = u;
@@ -417,12 +422,15 @@
     gl.uniform1i(u.uMoon, 3);
     gl.uniform1i(u.uFishShade, 4);
     gl.uniform1i(u.uPadShade, 5);
+    gl.uniform1i(u.uFood, 7);
 
     this.fishTex = this.makeTexture(0);
     this.padTex = this.makeTexture(1);
     this.rippleTex = this.makeTexture(2);
     this.moonTex = this.makeTexture(3);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([230, 233, 240, 255]));
+    this.foodTex = this.makeTexture(7);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
     this.fishShade = this.makeTarget(4);
     this.padShade = this.makeTarget(5);
     this.blurMid = this.makeTarget(6);
@@ -720,7 +728,8 @@
     if (this.w) this.blurInto(this.padShade, 1, padCanvas, PAD_BLUR);
   };
 
-  KoiWater.prototype.render = function (seconds, fishCanvas) {
+  // `foodCanvas` is passed only when the food layer has changed.
+  KoiWater.prototype.render = function (seconds, fishCanvas, foodCanvas) {
     if (this.lost || !this.w) return;
     var gl = this.gl;
     var u = this.u;
@@ -728,6 +737,7 @@
       this.uploadCanvas(0, fishCanvas);
       this.blurInto(this.fishShade, 0, fishCanvas, FISH_BLUR);
     }
+    if (foodCanvas) this.uploadCanvas(7, foodCanvas);
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.uniform2f(u.uRes, this.w, this.h);
     gl.uniform1f(u.uDpr, this.canvas.width / this.w);
@@ -757,6 +767,7 @@
       gl.deleteTexture(this.padTex);
       gl.deleteTexture(this.rippleTex);
       gl.deleteTexture(this.moonTex);
+      gl.deleteTexture(this.foodTex);
       [this.fishShade, this.padShade, this.blurMid].forEach(function (target) {
         gl.deleteTexture(target.tex);
         gl.deleteFramebuffer(target.fb);
