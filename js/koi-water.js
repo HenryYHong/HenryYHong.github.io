@@ -201,12 +201,11 @@
     "  float speck = step(0.82, hash(di + 2.3)) * exp(-dot(dd, dd) * 1.4);",
     "  col = mix(col, vec3(0.8, 0.76, 0.58), speck * 0.35);",
     // Night mode: the moon reflected in the water, upper right and clear of the
-    // heading. A reflection stays put: only its edge wavers, slowly, and
-    // ripples from food or fish bend it as they pass.
+    // heading. A reflection stays put as a clean circle; only ripples from food
+    // or fish bend it as they pass.
     "  vec2 moonC = vec2(uRes.x * 0.7, uTop + (uRes.y - uTop) * 0.3);",
     "  float moonR = clamp(uRes.x * 0.016, 14.0, 22.0);",
-    "  vec2 wob = vec2(noise(p * 0.045 + vec2(uTime * 0.25, 0.0)), noise(p * 0.045 + vec2(5.0, uTime * 0.2))) - 0.5;",
-    "  vec2 mo = p - moonC + wob * 1.8 + rg * 0.25 + dropG * 1.5;",
+    "  vec2 mo = p - moonC + rg * 0.25 + dropG * 1.5;",
     "  float md = length(mo);",
     "  if (uNight > 0.0) {",
     "    float disc = 1.0 - smoothstep(moonR - 1.2, moonR + 1.2, md);",
@@ -216,14 +215,14 @@
     "    col = mix(col, moonCol, disc * 0.85 * uNight);",
     "    col += vec3(0.55, 0.68, 0.9) * exp(-md * md / (moonR * moonR * 9.0)) * 0.16 * uNight;",
     "  }",
-    // Clouds reflected in the water, drifting with the wind: soft and misty at
-    // the edges, a little stretched along the way they drift. The swell bends
-    // them slightly and ripples from food and fish distort them. They thin out
-    // behind the heading.
+    // Clouds reflected in the water, drifting right with the wind at about
+    // 15 px a second: soft and misty at the edges, a little stretched along the
+    // way they drift, and slowly changing shape. The swell bends them slightly
+    // and ripples from food and fish distort them. They thin out behind the heading.
     "  vec2 cp2 = p + g / 110.0 * 30.0;",
-    "  vec2 cq = vec2(cp2.x * 0.0018, cp2.y * 0.003) + vec2(-uTime * 0.013, -uTime * 0.003);",
-    "  cq += (vec2(fbm(cq * 1.1 + 3.1), fbm(cq * 1.1 + 8.4)) - 0.5) * 0.35;",
-    "  float puff = fbm(cq + vec2(0.0, uTime * 0.003));",
+    "  vec2 cq = vec2(cp2.x * 0.0018, cp2.y * 0.003) - vec2(uTime * 0.027, 0.0);",
+    "  cq += (vec2(fbm(cq * 1.1 + vec2(3.1, uTime * 0.004)), fbm(cq * 1.1 + vec2(8.4, -uTime * 0.004))) - 0.5) * 0.35;",
+    "  float puff = fbm(cq);",
     "  float cloud = smoothstep(0.47, 0.72, puff);",
     "  cloud *= mix(0.5, 1.0, smoothstep(0.6, 1.4, length(mid)));",
     "  vec3 cloudCol = mix(vec3(0.97, 0.98, 1.0), vec3(0.42, 0.5, 0.66), uNight);",
