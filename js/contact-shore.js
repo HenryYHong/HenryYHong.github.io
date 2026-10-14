@@ -1,61 +1,28 @@
 (function () {
   "use strict";
 
-  // The far side of the koi pond behind the contact section: a Chinese garden
-  // against the sky the pond reflects. Misty hills, a whitewashed wall with a
-  // moon gate, a pavilion hung with red lanterns, a Taihu rock, bamboo, and a
-  // weeping willow in the breeze. Fireflies and a few stars at night; by day,
-  // a dragonfly now and then and a little pollen in the light.
+  // The far side of the koi pond behind the contact section: the sky the pond
+  // reflects, soft layers of misty hills, and a weeping willow at the edge
+  // swaying in the breeze. Fireflies and a few stars at night; by day, a
+  // dragonfly now and then and a little pollen in the light.
 
   var TAU = Math.PI * 2;
   var NARROW = 760; // below this width the garden uses its phone layout
 
   // Colors by day and in moonlight: [r, g, b] or [r, g, b, alpha].
   var DAY = {
-    hillFar: [52, 92, 130, 0.26],
-    hillNear: [44, 82, 118, 0.34],
-    plaster: [238, 234, 225],
-    plasterShade: [212, 205, 191],
-    tile: [58, 64, 71],
-    tileLight: [96, 103, 112],
-    stone: [122, 128, 135],
-    lattice: [74, 80, 88],
-    roof: [47, 53, 60],
-    roofUnder: [30, 34, 39],
-    column: [163, 58, 44],
-    beam: [122, 40, 32],
-    trim: [201, 162, 74],
-    rail: [110, 74, 58],
-    lantern: [210, 62, 44],
-    rock: [138, 147, 160],
-    rockDark: [88, 97, 110],
-    trunk: [66, 60, 52],
+    hillFar: [66, 106, 146, 0.3],
+    hillMid: [50, 88, 126, 0.48],
+    hillNear: [34, 64, 94, 1],
+    trunk: [52, 50, 46],
     willow: [120, 170, 88],
-    bamboo: [98, 146, 76],
-    bambooLeaf: [80, 128, 62],
   };
   var NIGHT = {
-    hillFar: [12, 28, 58, 0.45],
-    hillNear: [9, 22, 48, 0.6],
-    plaster: [150, 162, 182],
-    plasterShade: [116, 128, 150],
-    tile: [20, 25, 33],
-    tileLight: [40, 47, 58],
-    stone: [58, 64, 74],
-    lattice: [34, 40, 50],
-    roof: [17, 21, 27],
-    roofUnder: [10, 13, 17],
-    column: [88, 36, 32],
-    beam: [66, 28, 26],
-    trim: [112, 94, 54],
-    rail: [54, 38, 32],
-    lantern: [200, 74, 44],
-    rock: [64, 74, 88],
-    rockDark: [38, 45, 57],
-    trunk: [26, 26, 28],
+    hillFar: [16, 34, 66, 0.5],
+    hillMid: [11, 26, 54, 0.72],
+    hillNear: [7, 16, 34, 1],
+    trunk: [20, 22, 26],
     willow: [46, 80, 58],
-    bamboo: [38, 68, 46],
-    bambooLeaf: [32, 60, 40],
   };
 
   function rand(a, b) {
@@ -87,7 +54,7 @@
     };
   }
 
-  // A soft round glow for fireflies, pollen and lanterns.
+  // A soft round glow for fireflies and pollen.
   function makeGlow(rgb) {
     var c = document.createElement("canvas");
     c.width = c.height = 64;
@@ -112,7 +79,6 @@
     this.ctx = canvas.getContext("2d");
     this.fireGlow = makeGlow("214, 255, 120");
     this.sunGlow = makeGlow("255, 246, 214");
-    this.lampGlow = makeGlow("255, 176, 96");
     this.layers = {};
     this.w = 0;
     this.h = 0;
@@ -148,7 +114,7 @@
   };
 
   // Where everything goes. The middle stays low and open under the heading
-  // and buttons; the pavilion stands on the left and the willow on the right.
+  // and buttons; the willow stands on the right.
   ContactShore.prototype.layout = function () {
     var w = this.w;
     var h = this.h;
@@ -158,20 +124,12 @@
     var i;
     this.u = u;
     this.narrow = narrow;
-    this.wallTop = h - clamp(h * 0.18, 34, 52);
-    // The wall rises in a gentle wave around the moon gate, like the cloud
-    // walls of Suzhou gardens.
-    var gx = w * (narrow ? 0.82 : 0.77);
-    this.rise = { x: gx, half: (narrow ? 62 : 96) * u, height: (narrow ? 24 : 34) * u };
-    var gr = (h - 8 - (this.wallTop - this.rise.height + 2)) * 0.4;
-    this.gate = { x: gx, y: h - 8 - gr - 3 * u, r: gr };
-    this.windows = narrow ? [w * 0.5] : [w * 0.2, w * 0.6];
-    this.pavilion = { x: w * (narrow ? 0.13 : 0.1), s: u * (narrow ? 0.58 : 1) };
-
-    // Two rows of distant hills, lower in the middle.
+    // Three rows of hills, lower in the middle under the heading and buttons:
+    // two misty ones in the distance and a darker one near the water.
     this.hills = [
-      { base: h - 58 * u, amp: 58 * u, f: [0.006, 0.017, 0.041], p: [0.3, 2.1, 4.4], color: "hillFar" },
-      { base: h - 42 * u, amp: 34 * u, f: [0.009, 0.023, 0.053], p: [1.7, 0.4, 3.2], color: "hillNear" },
+      { base: h - 62 * u, amp: 64 * u, f: [0.006, 0.017, 0.041], p: [0.3, 2.1, 4.4], color: "hillFar", mist: true },
+      { base: h - 36 * u, amp: 42 * u, f: [0.009, 0.023, 0.053], p: [1.7, 0.4, 3.2], color: "hillMid", mist: true },
+      { base: h - 12 * u, amp: 26 * u, f: [0.011, 0.029, 0.067], p: [2.6, 1.1, 0.7], color: "hillNear", mist: false },
     ];
 
     // The willow stands at the right edge; its branches hang in from above.
@@ -189,22 +147,6 @@
         curl: -0.35 + rnd() * 0.45,
         dark: rnd() < 0.45,
       });
-    }
-
-    // A Taihu rock and a clump of bamboo, left of the middle, on wide screens.
-    this.rock = narrow ? null : { x: w * 0.29, rx: 19 * u, ry: 40 * u, bumps: [] };
-    if (this.rock) {
-      for (i = 0; i < 18; i++) this.rock.bumps.push(0.7 + rnd() * 0.42);
-    }
-    this.bamboo = [];
-    if (!narrow) {
-      for (i = 0; i < 5; i++) {
-        var leaves = [];
-        for (var k = 0; k < 9; k++) {
-          leaves.push({ at: 0.62 + rnd() * 0.38, side: rnd() < 0.5 ? -1 : 1, ang: 0.35 + rnd() * 0.7, len: (11 + rnd() * 6) * u });
-        }
-        this.bamboo.push({ x: w * 0.335 + (i * 7 + rnd() * 4) * u, height: (88 + rnd() * 46) * u, lean: (rnd() - 0.4) * 0.12, phase: rnd() * TAU, leaves: leaves });
-      }
     }
 
     var count = Math.round(clamp(w / 75, 6, 18));
@@ -230,35 +172,27 @@
     }
   };
 
-  // The parts that never move are painted once for day and once for night:
-  // behind the bamboo (hills, willow trunk, wall) and in front of it (rock, pavilion).
+  // The hills and the willow's trunk never move, so they're painted once for
+  // day and once for night. The trunk stands behind the nearest hills.
   ContactShore.prototype.paintLayers = function () {
     var self = this;
     ["day", "night"].forEach(function (when) {
       var P = when === "day" ? DAY : NIGHT;
-      ["back", "front"].forEach(function (part) {
-        var key = when + part;
-        var c = self.layers[key] || (self.layers[key] = document.createElement("canvas"));
-        c.width = self.canvas.width;
-        c.height = self.canvas.height;
-        var ctx = c.getContext("2d");
-        ctx.setTransform(self.dpr, 0, 0, self.dpr, 0, 0);
-        if (part === "back") {
-          self.paintHills(ctx, P);
-          self.paintTrunk(ctx, P);
-          self.paintWall(ctx, P);
-        } else {
-          if (self.rock) self.paintRock(ctx, P);
-          self.paintPavilion(ctx, P);
-        }
-      });
+      var c = self.layers[when] || (self.layers[when] = document.createElement("canvas"));
+      c.width = self.canvas.width;
+      c.height = self.canvas.height;
+      var ctx = c.getContext("2d");
+      ctx.setTransform(self.dpr, 0, 0, self.dpr, 0, 0);
+      self.paintHills(ctx, P, self.hills.slice(0, 2));
+      self.paintTrunk(ctx, P);
+      self.paintHills(ctx, P, self.hills.slice(2));
     });
   };
 
-  ContactShore.prototype.paintHills = function (ctx, P) {
+  ContactShore.prototype.paintHills = function (ctx, P, hills) {
     var w = this.w;
     var h = this.h;
-    this.hills.forEach(function (hill) {
+    hills.forEach(function (hill) {
       var top = h;
       var pts = [];
       for (var x = -8; x <= w + 8; x += 6) {
@@ -269,11 +203,15 @@
         pts.push([x, y]);
         top = Math.min(top, y);
       }
-      // Ink-wash hills: darkest along the ridge, fading into mist below.
-      var g = ctx.createLinearGradient(0, top, 0, hill.base + 20);
-      g.addColorStop(0, css(P[hill.color]));
-      g.addColorStop(1, css(P[hill.color], 0.25));
-      ctx.fillStyle = g;
+      // Distant hills are darkest along the ridge and fade into mist below.
+      if (hill.mist) {
+        var g = ctx.createLinearGradient(0, top, 0, hill.base + 20);
+        g.addColorStop(0, css(P[hill.color]));
+        g.addColorStop(1, css(P[hill.color], 0.25));
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = css(P[hill.color]);
+      }
       ctx.beginPath();
       ctx.moveTo(-8, h);
       pts.forEach(function (p) {
@@ -288,7 +226,7 @@
   ContactShore.prototype.paintTrunk = function (ctx, P) {
     var u = this.u;
     var t = this.trunk;
-    var base = this.wallTop + 4;
+    var base = this.h;
     ctx.fillStyle = css(P.trunk);
     ctx.beginPath();
     ctx.moveTo(t.x - 7 * u, base);
@@ -308,303 +246,6 @@
     ctx.moveTo(t.x - 4 * u, base * 0.22);
     ctx.quadraticCurveTo(t.x - 24 * u * reach, 6 * u, t.x - 46 * u * reach, -4 * u);
     ctx.stroke();
-  };
-
-  // Height of the wall's top edge at x.
-  ContactShore.prototype.wallAt = function (x) {
-    var r = this.rise;
-    var d = clamp((x - r.x) / r.half, -1, 1);
-    return this.wallTop - r.height * (0.5 + 0.5 * Math.cos(Math.PI * d));
-  };
-
-  // A whitewashed wall with a dark tile coping, a moon gate and lattice windows.
-  ContactShore.prototype.paintWall = function (ctx, P) {
-    var w = this.w;
-    var h = this.h;
-    var u = this.u;
-    var g = this.gate;
-    var x;
-    var top = [];
-    for (x = 0; x <= w + 4; x += 4) top.push([x, this.wallAt(x)]);
-    var body = ctx.createLinearGradient(0, this.wallTop - this.rise.height, 0, h - 6);
-    body.addColorStop(0, css(P.plaster));
-    body.addColorStop(1, css(P.plasterShade));
-    ctx.fillStyle = body;
-    ctx.beginPath();
-    ctx.moveTo(0, h - 6);
-    top.forEach(function (p) {
-      ctx.lineTo(p[0], p[1] + 2);
-    });
-    ctx.lineTo(w + 4, h - 6);
-    ctx.closePath();
-    ctx.moveTo(g.x + g.r, g.y);
-    ctx.arc(g.x, g.y, g.r, 0, TAU, true);
-    ctx.fill("evenodd");
-    ctx.strokeStyle = css(P.stone);
-    ctx.lineWidth = 3 * u;
-    ctx.beginPath();
-    ctx.arc(g.x, g.y, g.r + 1.4 * u, 0, TAU);
-    ctx.stroke();
-
-    var wallTop = this.wallTop;
-    this.windows.forEach(function (wx) {
-      var ww = 30 * u;
-      var wh = 18 * u;
-      var wy = wallTop + 2 + (h - 8 - wallTop - wh) / 2;
-      ctx.save();
-      ctx.fillStyle = css(P.lattice);
-      ctx.fillRect(wx - ww / 2, wy, ww, wh);
-      ctx.fillStyle = css(P.plasterShade);
-      ctx.fillRect(wx - ww / 2 + 2 * u, wy + 2 * u, ww - 4 * u, wh - 4 * u);
-      ctx.beginPath();
-      ctx.rect(wx - ww / 2 + 2 * u, wy + 2 * u, ww - 4 * u, wh - 4 * u);
-      ctx.clip();
-      ctx.strokeStyle = css(P.lattice);
-      ctx.lineWidth = 1.2 * u;
-      ctx.beginPath();
-      for (var d = -wh; d < ww + wh; d += 5 * u) {
-        ctx.moveTo(wx - ww / 2 + d, wy);
-        ctx.lineTo(wx - ww / 2 + d - wh, wy + wh);
-        ctx.moveTo(wx - ww / 2 + d - wh, wy);
-        ctx.lineTo(wx - ww / 2 + d, wy + wh);
-      }
-      ctx.stroke();
-      ctx.restore();
-    });
-
-    // The coping: a little roof of dark tiles following the top of the wall.
-    function band(above, below, color) {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      top.forEach(function (p, i) {
-        if (i === 0) ctx.moveTo(p[0], p[1] - above);
-        else ctx.lineTo(p[0], p[1] - above);
-      });
-      for (var i = top.length - 1; i >= 0; i--) ctx.lineTo(top[i][0], top[i][1] + below);
-      ctx.closePath();
-      ctx.fill();
-    }
-    band(-2, 5 * u, "rgba(0, 0, 0, 0.12)");
-    band(5 * u, 2, css(P.tile));
-    band(6.5 * u, -4.5 * u, css(P.tileLight));
-    ctx.strokeStyle = css(P.tileLight, 0.55);
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    for (x = 2; x < w; x += 5 * u) {
-      var y = this.wallAt(x);
-      ctx.moveTo(x, y - 4 * u);
-      ctx.lineTo(x, y + 2);
-    }
-    ctx.stroke();
-
-    ctx.fillStyle = css(P.stone);
-    ctx.fillRect(0, h - 6, w, 6);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
-    ctx.fillRect(0, h - 6, w, 1);
-  };
-
-  // A Taihu rock: weathered limestone full of hollows.
-  ContactShore.prototype.paintRock = function (ctx, P) {
-    var r = this.rock;
-    var u = this.u;
-    var cx = r.x;
-    var cy = this.h - r.ry * 0.95;
-    var n = r.bumps.length;
-    var pts = r.bumps.map(function (b, i) {
-      var a = (i / n) * TAU;
-      return [cx + Math.cos(a) * r.rx * b, cy + Math.sin(a) * r.ry * b];
-    });
-    var g = ctx.createLinearGradient(cx - r.rx, cy - r.ry, cx + r.rx, cy + r.ry);
-    g.addColorStop(0, css(P.rock));
-    g.addColorStop(1, css(P.rockDark));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    for (var i = 0; i < n; i++) {
-      var p = pts[i];
-      var q = pts[(i + 1) % n];
-      var mx = (p[0] + q[0]) / 2;
-      var my = (p[1] + q[1]) / 2;
-      if (i === 0) ctx.moveTo(mx, my);
-      else ctx.quadraticCurveTo(p[0], p[1], mx, my);
-    }
-    ctx.quadraticCurveTo(pts[0][0], pts[0][1], (pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = css(P.rockDark, 0.9);
-    [[-5, -20, 4, 6], [6, -6, 3.5, 5], [-4, 6, 3, 4.5], [5, 18, 2.6, 3.5]].forEach(function (hole) {
-      ctx.beginPath();
-      ctx.ellipse(cx + hole[0] * u, cy + hole[1] * u, hole[2] * u, hole[3] * u, 0.3, 0, TAU);
-      ctx.fill();
-    });
-    ctx.fillRect(cx - r.rx * 1.1, this.h - 6, r.rx * 2.2, 6);
-  };
-
-  // A pavilion (亭) with sweeping, upturned eaves, red columns and two lanterns.
-  ContactShore.prototype.paintPavilion = function (ctx, P) {
-    var p = this.pavilion;
-    var x = p.x;
-    var s = p.s;
-    var h = this.h;
-    var floor = h - 12 * s;
-    var colTop = floor - 70 * s;
-    var eave = colTop - 9 * s;
-
-    ctx.fillStyle = css(P.stone);
-    ctx.fillRect(x - 64 * s, floor, 128 * s, h - floor);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
-    ctx.fillRect(x - 64 * s, floor, 128 * s, 1.5 * s);
-
-    ctx.fillStyle = css(P.column, 0.85);
-    [-16, 16].forEach(function (dx) {
-      ctx.fillRect(x + dx * s - 2 * s, colTop, 4 * s, floor - colTop);
-    });
-    ctx.fillStyle = css(P.rail);
-    ctx.fillRect(x - 44 * s, floor - 19 * s, 88 * s, 3 * s);
-    ctx.fillRect(x - 44 * s, floor - 5 * s, 88 * s, 2.5 * s);
-    for (var b = -40; b <= 40; b += 6) ctx.fillRect(x + b * s - 0.7 * s, floor - 17 * s, 1.4 * s, 12 * s);
-    ctx.fillStyle = css(P.column);
-    [-44, 44].forEach(function (dx) {
-      ctx.fillRect(x + dx * s - 2.8 * s, colTop, 5.6 * s, floor - colTop);
-    });
-
-    // Beam with a gold line, and the carved lattice frieze hanging beneath it.
-    ctx.fillStyle = css(P.beam);
-    ctx.fillRect(x - 52 * s, colTop - 7 * s, 104 * s, 7 * s);
-    ctx.fillStyle = css(P.trim);
-    ctx.fillRect(x - 52 * s, colTop - 4.5 * s, 104 * s, 1.2 * s);
-    ctx.strokeStyle = css(P.rail);
-    ctx.lineWidth = 1 * s;
-    ctx.beginPath();
-    ctx.rect(x - 41 * s, colTop, 82 * s, 5 * s);
-    for (var f = -41; f < 41; f += 5) {
-      ctx.moveTo(x + f * s, colTop);
-      ctx.lineTo(x + (f + 2.5) * s, colTop + 5 * s);
-      ctx.lineTo(x + (f + 5) * s, colTop);
-    }
-    ctx.stroke();
-
-    // The roof: concave slopes sweeping up to curled tips, tiles running down it.
-    ctx.beginPath();
-    ctx.moveTo(x - 88 * s, eave - 17 * s);
-    ctx.quadraticCurveTo(x - 68 * s, eave + 2 * s, x - 46 * s, eave + 2 * s);
-    ctx.lineTo(x + 46 * s, eave + 2 * s);
-    ctx.quadraticCurveTo(x + 68 * s, eave + 2 * s, x + 88 * s, eave - 17 * s);
-    ctx.quadraticCurveTo(x + 40 * s, eave - 12 * s, x + 9 * s, eave - 58 * s);
-    ctx.lineTo(x - 9 * s, eave - 58 * s);
-    ctx.quadraticCurveTo(x - 40 * s, eave - 12 * s, x - 88 * s, eave - 17 * s);
-    ctx.closePath();
-    ctx.fillStyle = css(P.roof);
-    ctx.fill();
-    ctx.save();
-    ctx.clip();
-    ctx.strokeStyle = css(P.roofUnder, 0.45);
-    ctx.lineWidth = 1 * s;
-    ctx.beginPath();
-    for (var k = -12; k <= 12; k++) {
-      ctx.moveTo(x + k * 1.2 * s, eave - 58 * s);
-      ctx.lineTo(x + k * 7.2 * s, eave + 2 * s);
-    }
-    ctx.stroke();
-    ctx.restore();
-    ctx.strokeStyle = css(P.roofUnder);
-    ctx.lineWidth = 3 * s;
-    ctx.beginPath();
-    ctx.moveTo(x - 86 * s, eave - 15 * s);
-    ctx.quadraticCurveTo(x - 68 * s, eave + 1 * s, x - 46 * s, eave + 1 * s);
-    ctx.lineTo(x + 46 * s, eave + 1 * s);
-    ctx.quadraticCurveTo(x + 68 * s, eave + 1 * s, x + 86 * s, eave - 15 * s);
-    ctx.stroke();
-    ctx.strokeStyle = css(P.roof);
-    ctx.lineWidth = 2 * s;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(x - 88 * s, eave - 17 * s);
-    ctx.quadraticCurveTo(x - 92 * s, eave - 21 * s, x - 90 * s, eave - 25 * s);
-    ctx.moveTo(x + 88 * s, eave - 17 * s);
-    ctx.quadraticCurveTo(x + 92 * s, eave - 21 * s, x + 90 * s, eave - 25 * s);
-    ctx.stroke();
-
-    // Ridge and a gold finial on top.
-    ctx.fillStyle = css(P.roofUnder);
-    ctx.fillRect(x - 11 * s, eave - 61 * s, 22 * s, 4 * s);
-    ctx.fillStyle = css(P.trim);
-    ctx.beginPath();
-    ctx.arc(x, eave - 65 * s, 3.2 * s, 0, TAU);
-    ctx.arc(x, eave - 70.5 * s, 2.1 * s, 0, TAU);
-    ctx.fill();
-    ctx.fillRect(x - 0.6 * s, eave - 78 * s, 1.2 * s, 6 * s);
-
-    // Red lanterns under the front corners.
-    p.lanterns = [];
-    [-44, 44].forEach(function (dx) {
-      var lx = x + dx * s;
-      var ly = eave + 17 * s;
-      ctx.strokeStyle = css(P.roofUnder);
-      ctx.lineWidth = 0.8 * s;
-      ctx.beginPath();
-      ctx.moveTo(lx, eave + 3 * s);
-      ctx.lineTo(lx, ly - 7 * s);
-      ctx.moveTo(lx, ly + 8 * s);
-      ctx.lineTo(lx, ly + 14 * s);
-      ctx.stroke();
-      ctx.fillStyle = css(P.lantern);
-      ctx.beginPath();
-      ctx.ellipse(lx, ly, 6 * s, 7.5 * s, 0, 0, TAU);
-      ctx.fill();
-      ctx.fillStyle = css(P.trim);
-      ctx.fillRect(lx - 2.5 * s, ly - 8.5 * s, 5 * s, 2 * s);
-      ctx.fillRect(lx - 2.5 * s, ly + 6.5 * s, 5 * s, 2 * s);
-      p.lanterns.push({ x: lx, y: ly });
-    });
-  };
-
-  // Bamboo sways a little, its leaves in sprigs near the top.
-  ContactShore.prototype.drawBamboo = function (ctx, P) {
-    var h = this.h;
-    var u = this.u;
-    var t = this.time;
-    var still = this.still;
-    this.bamboo.forEach(function (c) {
-      var sway = still ? 0 : (Math.sin(t * 0.8 + c.phase) * 3 + Math.sin(t * 1.9 + c.phase) * 0.8) * (c.height / 120);
-      var bx = c.x;
-      var by = h - 6;
-      var tx = bx + c.lean * c.height + sway;
-      var ty = by - c.height;
-      ctx.strokeStyle = css(P.bamboo);
-      ctx.lineWidth = 2.6 * u;
-      ctx.lineCap = "butt";
-      ctx.beginPath();
-      ctx.moveTo(bx, by);
-      ctx.quadraticCurveTo(bx + (tx - bx) * 0.3, by - c.height * 0.5, tx, ty);
-      ctx.stroke();
-      ctx.strokeStyle = css(P.bambooLeaf);
-      ctx.lineWidth = 3.4 * u;
-      ctx.beginPath();
-      for (var k = 14 * u; k < c.height - 6 * u; k += 15 * u) {
-        var f = k / c.height;
-        var nx = bx + (tx - bx) * f * f;
-        var ny = by - k;
-        ctx.moveTo(nx - 1.7 * u, ny);
-        ctx.lineTo(nx + 1.7 * u, ny);
-      }
-      ctx.lineWidth = 0.9 * u;
-      ctx.stroke();
-      ctx.fillStyle = css(P.bambooLeaf);
-      c.leaves.forEach(function (l) {
-        var lx = bx + (tx - bx) * l.at * l.at;
-        var ly = by - c.height * l.at;
-        var a = l.side > 0 ? l.ang : Math.PI - l.ang;
-        var ex = lx + Math.cos(a) * l.len;
-        var ey = ly + Math.sin(a) * l.len * 0.6;
-        var nx = -Math.sin(a) * 1.4 * u;
-        var ny = Math.cos(a) * 1.4 * u;
-        ctx.beginPath();
-        ctx.moveTo(lx, ly);
-        ctx.quadraticCurveTo((lx + ex) / 2 + nx, (ly + ey) / 2 + ny, ex, ey);
-        ctx.quadraticCurveTo((lx + ex) / 2 - nx, (ly + ey) / 2 - ny, lx, ly);
-        ctx.fill();
-      });
-    });
   };
 
   // The willow's long branches hang and sway, little leaves along each one,
@@ -636,34 +277,16 @@
     });
   };
 
-  ContactShore.prototype.drawLanternGlow = function (ctx) {
-    var lanterns = this.pavilion.lanterns || [];
-    var s = this.pavilion.s;
-    var t = this.time;
-    lanterns.forEach(function (l, i) {
-      var flicker = this.still ? 1 : 0.9 + 0.1 * Math.sin(t * 3.1 + i * 2.3) + 0.05 * Math.sin(t * 7.7 + i);
-      ctx.globalAlpha = this.night * 0.7 * flicker;
-      var r = 30 * s;
-      ctx.drawImage(this.lampGlow, l.x - r, l.y - r, r * 2, r * 2);
-      ctx.globalAlpha = this.night * 0.55;
-      ctx.fillStyle = "rgb(255, 196, 120)";
-      ctx.beginPath();
-      ctx.ellipse(l.x, l.y, 4 * s, 5.5 * s, 0, 0, TAU);
-      ctx.fill();
-    }, this);
-    ctx.globalAlpha = 1;
-  };
-
-  ContactShore.prototype.drawLayer = function (ctx, part) {
+  ContactShore.prototype.drawLayer = function (ctx) {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (this.night < 1) {
       ctx.globalAlpha = 1;
-      ctx.drawImage(this.layers["day" + part], 0, 0);
+      ctx.drawImage(this.layers.day, 0, 0);
     }
     if (this.night > 0) {
       ctx.globalAlpha = this.night;
-      ctx.drawImage(this.layers["night" + part], 0, 0);
+      ctx.drawImage(this.layers.night, 0, 0);
     }
     ctx.restore();
   };
@@ -883,21 +506,14 @@
   ContactShore.prototype.draw = function () {
     var ctx = this.ctx;
     var n = this.night;
-    var P = {
-      willow: mix(DAY.willow, NIGHT.willow, n),
-      bamboo: mix(DAY.bamboo, NIGHT.bamboo, n),
-      bambooLeaf: mix(DAY.bambooLeaf, NIGHT.bambooLeaf, n),
-    };
+    var P = { willow: mix(DAY.willow, NIGHT.willow, n) };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     if (n > 0) this.drawStars(ctx);
-    this.drawLayer(ctx, "back");
+    this.drawLayer(ctx);
     if (n < 1) this.drawMotes(ctx);
-    this.drawBamboo(ctx, P);
-    this.drawLayer(ctx, "front");
     this.drawWillow(ctx, P);
-    if (n > 0) this.drawLanternGlow(ctx);
     if (this.dragonfly) this.drawDragonfly(ctx);
     if (n > 0) this.drawFireflies(ctx);
   };
