@@ -2,10 +2,13 @@
   "use strict";
 
   // The far side of the koi pond behind the contact section: the sky the pond
-  // reflects over soft layers of misty hills, where now and then a dragon
-  // glides by in the distance. At night, stars with the Big Dipper among them,
-  // and fireflies; by day, a little pollen in the light and now and then a
-  // dragonfly, which sometimes lands on one of the buttons.
+  // reflects over soft rows of misty hills, with a sea of clouds drifting
+  // between them as on Huang Shan. On the right a waterfall pours from a
+  // mountain with the Dragon Gate at the top. Now and then a koi leaps
+  // at the falls, and when one clears the gate it turns into a dragon and
+  // glides off across the sky, as in the old story. At night, stars with the
+  // Big Dipper among them, and fireflies; by day, a little pollen in the light
+  // and now and then a dragonfly, which sometimes lands on one of the buttons.
 
   var TAU = Math.PI * 2;
 
@@ -14,11 +17,15 @@
     hillFar: [66, 106, 146, 0.3],
     hillMid: [50, 88, 126, 0.48],
     hillNear: [34, 64, 94, 1],
+    gate: [36, 66, 98, 0.66],
+    falls: [236, 246, 255, 0.6],
   };
   var NIGHT = {
     hillFar: [16, 34, 66, 0.5],
     hillMid: [11, 26, 54, 0.72],
     hillNear: [7, 16, 34, 1],
+    gate: [7, 17, 37, 0.85],
+    falls: [176, 200, 232, 0.34],
   };
 
   function rand(a, b) {
@@ -27,6 +34,45 @@
 
   function clamp(v, a, b) {
     return v < a ? a : v > b ? b : v;
+  }
+
+  // Koi that try the falls: [body, patch], like the ones in the pond.
+  var KOI = [
+    ["#f07a32", null],
+    ["#f4efe6", "#d9472b"],
+    ["#e8b23c", null],
+    ["#f4efe6", "#f07a32"],
+  ];
+
+  // The mountain the falls pour from, as height above the lip against
+  // distance from the falls, in units: one of the far hills rising into two
+  // rounded peaks, the right one taller, with a ledge between them where the
+  // gate stands and the water tips over.
+  var PEAK = [
+    [-112, -76], [-80, -50], [-56, -26], [-40, -8], [-30, 4], [-24, 10], [-20, 11],
+    [-17.6, 5], [-16, 0], [16, 0], [17.6, 7], [21, 15], [27, 21], [33, 20], [41, 11],
+    [52, -4], [68, -26], [90, -52], [118, -80],
+  ];
+
+  // A smooth curve through those points that never overshoots them, so the
+  // ledge stays flat and the peaks stay round.
+  var PEAK_SLOPES = PEAK.map(function (q, i) {
+    if (i === 0 || i === PEAK.length - 1) return 0;
+    var a = (q[1] - PEAK[i - 1][1]) / (q[0] - PEAK[i - 1][0]);
+    var b = (PEAK[i + 1][1] - q[1]) / (PEAK[i + 1][0] - q[0]);
+    return a * b <= 0 ? 0 : (2 * a * b) / (a + b);
+  });
+
+  function peakHeight(dx) {
+    if (dx <= PEAK[0][0] || dx >= PEAK[PEAK.length - 1][0]) return -Infinity;
+    var i = 0;
+    while (PEAK[i + 1][0] < dx) i++;
+    var x0 = PEAK[i][0];
+    var span = PEAK[i + 1][0] - x0;
+    var t = (dx - x0) / span;
+    var t2 = t * t;
+    var t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * PEAK[i][1] + (t3 - 2 * t2 + t) * span * PEAK_SLOPES[i] + (-2 * t3 + 3 * t2) * PEAK[i + 1][1] + (t3 - t2) * span * PEAK_SLOPES[i + 1];
   }
 
   // The Big Dipper's stars, [right ascension in hours, declination in degrees,
@@ -62,6 +108,12 @@
       return [(q[0] - cx) / span, (q[1] - cy) / span, q[2]];
     });
   })();
+
+  function mix(a, b, k) {
+    return a.map(function (v, i) {
+      return v + (b[i] - v) * k;
+    });
+  }
 
   function css(c, alpha) {
     var a = (c.length > 3 ? c[3] : 1) * (alpha == null ? 1 : alpha);
@@ -124,6 +176,49 @@
     s.zIndex = z;
   }
 
+  // Cracks and ledges in the rock, roughening the granite.
+  function crag(x, seed) {
+    return Math.sin(x * 0.23 + seed) * 1.5 + Math.sin(x * 0.61 + seed * 2) * 0.9 + Math.sin(x * 1.37 + seed * 3) * 0.45;
+  }
+
+  // How high one of Huang Shan's granite columns stands at x: sheer walls and
+  // a broad, rounded top tipped a little to one side, with a little fallen
+  // rock at its foot. A lower power makes a rounder mass of rock, the kind
+  // the columns rise out of.
+  function columnHeight(c, x) {
+    var d = (x - c.x) / c.w;
+    var r = Math.abs(d);
+    if (r >= 1.7) return 0;
+    var core = r < 1 ? c.h * Math.pow(1 - Math.pow(r, c.p), 0.4) * (1 + c.tilt * d) : 0;
+    var q = 1 - r / 1.7;
+    return Math.max(core, c.h * 0.22 * q * q);
+  }
+
+  // The height of a row of hills at x: low in the middle, under the heading
+  // and buttons. Where the row has granite columns they rise out of it,
+  // their tops knobbed and cracked.
+  function ridge(hill, x, w) {
+    var f = hill.f;
+    var n = 0.55 * Math.sin(x * f[0] + hill.p[0]) + 0.3 * Math.sin(x * f[1] + hill.p[1]) + 0.15 * Math.sin(x * f[2] + hill.p[2]);
+    var side = Math.abs(x / w - 0.5) * 2;
+    var y = hill.base - hill.amp * (0.5 + 0.5 * n) * (0.45 + 0.55 * side);
+    if (!hill.columns) return y;
+    var tallest = 0;
+    for (var i = 0; i < hill.columns.length; i++) {
+      var ch = columnHeight(hill.columns[i], x);
+      if (ch <= 0) continue;
+      y = Math.min(y, hill.base - ch);
+      tallest = Math.max(tallest, ch);
+    }
+    return y + crag(x, hill.seed) * 0.6 * clamp(tallest / 30, 0, 1);
+  }
+
+  // The higher of two ridges, rounded off where they meet.
+  function smoothTop(a, b, k) {
+    var m = clamp(0.5 + (0.5 * (b - a)) / k, 0, 1);
+    return b + (a - b) * m - k * m * (1 - m);
+  }
+
   function ContactShore(section, canvas, front) {
     pin(canvas, "0");
     pin(front, "3");
@@ -138,6 +233,8 @@
     this.mistBlob = makeMist();
     this.fireGlow = makeGlow("214, 255, 120");
     this.sunGlow = makeGlow("255, 246, 214");
+    this.foam = makeGlow("255, 255, 255");
+    this.shade = makeGlow("112, 150, 190");
     this.layers = {};
     this.w = 0;
     this.h = 0;
@@ -151,7 +248,12 @@
     this.dragonfly = null;
     this.nextDragonfly = rand(6, 12);
     this.dragon = null;
-    this.nextDragon = rand(4, 7);
+    // A koi tries the falls a few seconds after the section comes into view,
+    // and each dragon starts as one.
+    this.leap = null;
+    this.nextLeap = rand(3, 5);
+    this.drops = [];
+    this.puff = null;
     // The dragon is drawn solid here first, then faded onto the sky in one
     // piece, so where its parts overlap doesn't show darker.
     this.dragonLayer = document.createElement("canvas");
@@ -185,13 +287,81 @@
     var u = h / 254;
     var rnd = seeded(1013);
     var i;
+    // The falls on the right, from the lip under the gate down to where the
+    // middle row of peaks hides its foot in cloud and spray. Smaller on
+    // phones, and closer to the edge, clear of the heading.
+    var wide = w >= 700;
+    var fu = wide ? u : u * 0.85;
+    var fx = Math.round(w * (wide ? 0.86 : 0.9));
+    var lip = h * 0.41;
+
     // Three rows of hills, lower in the middle under the heading and buttons:
-    // two misty ones in the distance and a darker one near the water.
+    // two misty ones in the distance and a darker one near the water. As on
+    // Huang Shan, a cluster of granite columns rises out of them on the left,
+    // pressed together at different heights, with a nearer pair below it,
+    // and a small one past the falls. The middle stays open. On phones the
+    // columns huddle closer to the edge.
+    var px = w >= 700 ? u : u * 0.6;
+    function columns(at, list) {
+      return list.map(function (c) {
+        return { x: at + c[0] * fu, h: c[1] * fu, w: c[2] * fu, tilt: c[3], p: c[4] || 3 };
+      });
+    }
     this.hills = [
-      { base: h - 62 * u, amp: 64 * u, f: [0.006, 0.017, 0.041], p: [0.3, 2.1, 4.4], color: "hillFar", mist: true },
-      { base: h - 36 * u, amp: 42 * u, f: [0.009, 0.023, 0.053], p: [1.7, 0.4, 3.2], color: "hillMid", mist: true },
+      {
+        base: h - 62 * u, amp: 44 * u, f: [0.006, 0.017, 0.041], p: [0.3, 2.1, 4.4], color: "hillFar", mist: true, seed: 0.7,
+        columns: columns(78 * px, [[-2, 46, 58, 0.05, 1.6], [-40, 54, 12, 0.12], [-21, 82, 11, -0.1], [-3, 106, 13, 0.07], [16, 72, 9, -0.12], [33, 52, 12, 0.08]])
+          .concat(columns(fx + 104 * fu, [[0, 34, 30, 0, 1.6], [-7, 62, 10, 0.1], [9, 46, 9, -0.08]])),
+      },
+      {
+        base: h - 36 * u, amp: 36 * u, f: [0.009, 0.023, 0.053], p: [1.7, 0.4, 3.2], color: "hillMid", mist: true, seed: 2.3,
+        columns: columns(14 * px, [[4, 30, 30, 0, 1.6], [-6, 56, 12, 0.1], [15, 42, 9, -0.1]]),
+      },
       { base: h - 12 * u, amp: 26 * u, f: [0.011, 0.029, 0.067], p: [2.6, 1.1, 0.7], color: "hillNear", mist: false },
     ];
+    this.falls = {
+      x: fx,
+      lip: lip,
+      base: 0,
+      u: fu,
+      // Where a koi that clears the gate turns into a dragon.
+      top: lip - 30 * fu,
+    };
+    this.falls.base = clamp(ridge(this.hills[1], fx, w) + 2 * u, h * 0.6, h * 0.84);
+    var prnd = seeded(2077);
+    // Threads of water running down the falls, each at its own place across
+    // the sheet and its own pace.
+    this.streaks = [];
+    for (i = 0; i < 26; i++) {
+      this.streaks.push({
+        across: prnd() * 2 - 1,
+        phase: prnd(),
+        rate: 0.55 + prnd() * 0.25,
+        len: 0.7 + prnd() * 0.6,
+        sway: prnd() * TAU,
+        dark: i % 3 === 2,
+      });
+    }
+
+    // A pine leaning out from the top of the nearer pair of columns, one on
+    // the tallest column, and one on the shoulder of the mountain beside the
+    // gate.
+    this.pines = [
+      { row: 1, x: 14 * px + 19 * fu, size: 10 * fu, lean: 1 },
+      { row: 0, x: 78 * px - 1 * fu, size: 7 * fu, lean: -1 },
+      { row: 0, x: fx - 21 * fu, size: 7 * fu, lean: -1 },
+    ];
+
+    // The sea of clouds: banks of mist drifting slowly through the valleys,
+    // one at the foot of the far peaks and one at the foot of the middle row.
+    this.seas = [h - 74 * u, h - 44 * u].map(function (y, k) {
+      var banks = [];
+      for (var x = -100 * u; x < w + 100 * u; x += (50 + prnd() * 80) * u) {
+        if (prnd() < 0.35) continue;
+        banks.push({ x: x, dy: (prnd() - 0.5) * 12 * u, len: (70 + prnd() * 120) * u, thick: (k ? 14 : 18) * u * (0.7 + prnd() * 0.7), alpha: 0.4 + prnd() * 0.6 });
+      }
+      return { y: y, banks: banks, speed: (k ? 4 : 2.5) * u, span: w + 200 * u };
+    });
 
     var count = Math.round(clamp(w / 75, 6, 18));
     this.fireflies = [];
@@ -208,7 +378,6 @@
     }
     // The Big Dipper sits in open sky: left of the heading on wide screens,
     // in the top corner on phones.
-    var wide = w >= 700;
     var size = wide ? Math.min(170, w * 0.12) : w * 0.24;
     var dx = w * (wide ? 0.2 : 0.15);
     var dy = h * (wide ? 0.3 : 0.13);
@@ -250,33 +419,136 @@
     ctx.restore();
   };
 
-  // The hills never move, so they're painted once for day and once for night.
+  // Where a row of hills meets the sky. The far row rises into the mountain
+  // with the falls.
+  ContactShore.prototype.ridgeAt = function (hill, x) {
+    var y = ridge(hill, x, this.w);
+    if (hill !== this.hills[0]) return y;
+    var F = this.falls;
+    var up = peakHeight((x - F.x) / F.u);
+    return up === -Infinity ? y : smoothTop(y, F.lip - up * F.u, 24 * F.u);
+  };
+
+  // The mountains never move, so each row is painted once for day and once
+  // for night, on its own layer so the clouds can drift between them: the far
+  // row with the gate behind the falls, then the middle row, then the ridge
+  // by the water.
   ContactShore.prototype.paintLayers = function () {
     var self = this;
     ["day", "night"].forEach(function (when) {
       var P = when === "day" ? DAY : NIGHT;
-      var c = self.layers[when] || (self.layers[when] = document.createElement("canvas"));
-      c.width = self.canvas.width;
-      c.height = self.canvas.height;
-      var ctx = c.getContext("2d");
-      ctx.setTransform(self.dpr, 0, 0, self.dpr, 0, 0);
-      self.paintHills(ctx, P);
+      self.hills.forEach(function (hill, row) {
+        var key = when + "-" + row;
+        var c = self.layers[key] || (self.layers[key] = document.createElement("canvas"));
+        c.width = self.canvas.width;
+        c.height = self.canvas.height;
+        var ctx = c.getContext("2d");
+        ctx.setTransform(self.dpr, 0, 0, self.dpr, 0, 0);
+        self.paintHills(ctx, P, [hill]);
+        self.pines.forEach(function (pine) {
+          if (pine.row === row) self.paintPine(ctx, P, pine);
+        });
+        if (row === 0) self.paintGate(ctx, P);
+      });
     });
   };
 
-  ContactShore.prototype.paintHills = function (ctx, P) {
+  // A Huang Shan pine on a peak: a short bent trunk and flat, layered pads of
+  // needles reaching out to one side.
+  ContactShore.prototype.paintPine = function (ctx, P, pine) {
+    var hill = this.hills[pine.row];
+    var s = pine.size;
+    var d = pine.lean;
+    var x = pine.x;
+    var y = this.ridgeAt(hill, x) + 0.1 * s;
+    ctx.save();
+    ctx.fillStyle = ctx.strokeStyle = css(P[hill.color]);
+    ctx.lineCap = "round";
+    ctx.lineWidth = 0.13 * s;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x - d * 0.12 * s, y - 0.4 * s, x + d * 0.22 * s, y - 0.62 * s);
+    ctx.moveTo(x - d * 0.02 * s, y - 0.32 * s);
+    ctx.quadraticCurveTo(x + d * 0.3 * s, y - 0.36 * s, x + d * 0.62 * s, y - 0.44 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(x + d * 0.18 * s, y - 0.7 * s, 0.42 * s, 0.1 * s, 0, 0, TAU);
+    ctx.ellipse(x + d * 0.62 * s, y - 0.5 * s, 0.32 * s, 0.08 * s, 0, 0, TAU);
+    ctx.ellipse(x - d * 0.12 * s, y - 0.5 * s, 0.22 * s, 0.07 * s, 0, 0, TAU);
+    ctx.ellipse(x + d * 0.28 * s, y - 0.84 * s, 0.24 * s, 0.07 * s, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  // A bank of the sea of clouds.
+  ContactShore.prototype.drawSea = function (ctx, sea) {
+    var blob = this.mistBlob;
+    var a = 0.26 - 0.11 * this.night;
+    sea.banks.forEach(function (b) {
+      ctx.globalAlpha = a * b.alpha;
+      var y = sea.y + b.dy;
+      ctx.drawImage(blob, b.x - b.len / 2, y - b.thick / 2, b.len, b.thick);
+      ctx.drawImage(blob, b.x - b.len * 0.3, y - b.thick * 0.8, b.len * 0.5, b.thick * 0.9);
+    });
+    ctx.globalAlpha = 1;
+  };
+
+  // The Dragon Gate standing on the ledge over the falls: a three-bay archway
+  // with the middle bay over the water, each bay under its own tiled roof
+  // with upturned eaves, the middle one highest, and a plaque under it.
+  ContactShore.prototype.paintGate = function (ctx, P) {
+    var F = this.falls;
+    var u = F.u;
+    ctx.save();
+    ctx.translate(F.x, F.lip);
+    ctx.scale(u, u);
+    ctx.fillStyle = css(P.gate);
+    ctx.beginPath();
+    // Posts, the beams between them, and the plaque.
+    ctx.rect(-7.6, -13, 1.5, 13);
+    ctx.rect(6.1, -13, 1.5, 13);
+    ctx.rect(-13.6, -9, 1.2, 9);
+    ctx.rect(12.4, -9, 1.2, 9);
+    ctx.rect(-7.6, -10.6, 15.2, 1.1);
+    ctx.rect(-13, -7.6, 6, 1);
+    ctx.rect(7, -7.6, 6, 1);
+    ctx.rect(-2.6, -13.6, 5.2, 2.8);
+    ctx.fill();
+    // A roof: eaves from x0 to x1 at height y, sweeping up at both ends, and
+    // a ridge on top with its ends curled up.
+    function roof(x0, x1, y, tall) {
+      var span = x1 - x0;
+      var lift = tall * 0.45;
+      ctx.beginPath();
+      ctx.moveTo(x0, y - lift);
+      ctx.quadraticCurveTo(x0 + span * 0.14, y + 0.2, x0 + span * 0.3, y);
+      ctx.lineTo(x1 - span * 0.3, y);
+      ctx.quadraticCurveTo(x1 - span * 0.14, y + 0.2, x1, y - lift);
+      ctx.quadraticCurveTo(x1 - span * 0.12, y - tall * 0.45, x1 - span * 0.2, y - tall * 0.8);
+      ctx.lineTo(x1 - span * 0.17, y - tall * 1.15);
+      ctx.lineTo(x1 - span * 0.24, y - tall);
+      ctx.lineTo(x0 + span * 0.24, y - tall);
+      ctx.lineTo(x0 + span * 0.17, y - tall * 1.15);
+      ctx.lineTo(x0 + span * 0.2, y - tall * 0.8);
+      ctx.quadraticCurveTo(x0 + span * 0.12, y - tall * 0.45, x0, y - lift);
+      ctx.fill();
+    }
+    roof(-17, -6, -8.6, 3);
+    roof(6, 17, -8.6, 3);
+    roof(-11.5, 11.5, -13.4, 4.4);
+    ctx.restore();
+  };
+
+  ContactShore.prototype.paintHills = function (ctx, P, hills) {
     var w = this.w;
     var h = this.h;
-    this.hills.forEach(function (hill) {
+    var self = this;
+    hills.forEach(function (hill) {
       var top = h;
       var pts = [];
-      for (var x = -8; x <= w + 8; x += 6) {
-        var f = hill.f;
-        var n = 0.55 * Math.sin(x * f[0] + hill.p[0]) + 0.3 * Math.sin(x * f[1] + hill.p[1]) + 0.15 * Math.sin(x * f[2] + hill.p[2]);
-        var side = Math.abs(x / w - 0.5) * 2;
-        var y = hill.base - hill.amp * (0.5 + 0.5 * n) * (0.45 + 0.55 * side);
-        pts.push([x, y]);
-        top = Math.min(top, y);
+      for (var x = -8; x <= w + 8; x += 2) {
+        pts.push([x, self.ridgeAt(hill, x)]);
+        top = Math.min(top, ridge(hill, x, w));
       }
       // Distant hills are darkest along the ridge and fade into mist below.
       if (hill.mist) {
@@ -298,16 +570,16 @@
     });
   };
 
-  ContactShore.prototype.drawLayer = function (ctx) {
+  ContactShore.prototype.drawLayer = function (ctx, part) {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (this.night < 1) {
       ctx.globalAlpha = 1;
-      ctx.drawImage(this.layers.day, 0, 0);
+      ctx.drawImage(this.layers["day-" + part], 0, 0);
     }
     if (this.night > 0) {
       ctx.globalAlpha = this.night;
-      ctx.drawImage(this.layers.night, 0, 0);
+      ctx.drawImage(this.layers["night-" + part], 0, 0);
     }
     ctx.restore();
   };
@@ -389,48 +661,130 @@
     this.dragonfly = { x: fromLeft ? -40 : w + 40, y: h * rand(0.3, 0.6), stops: stops, wait: 0, perched: null, face: fromLeft ? 1 : -1 };
   };
 
-  // Now and then a dragon glides across the sky, small and far off behind the
-  // hills. It rises and dips slowly as it goes, its head rolling gently up and
-  // down, and the long body follows the same path, so it ripples like a ribbon.
-  ContactShore.prototype.spawnDragon = function () {
+  // A koi leaps at the falls from the spray at their foot. Most tries fall
+  // short and it drops back with a splash; the last one carries it up past
+  // the gate.
+  var LEAP_G = 240; // gravity, in units per second squared
+
+  ContactShore.prototype.startLeap = function () {
+    var F = this.falls;
+    var u = F.u;
+    var H = F.base - F.top;
+    var tries = [];
+    var t = 0;
+    var fails = Math.random() < 0.5 ? 1 : 2;
+    for (var k = 0; k <= fails; k++) {
+      var last = k === fails;
+      var height = H * (last ? 1 : k === fails - 1 ? rand(0.42, 0.6) : rand(0.2, 0.32));
+      var dur = 2 * Math.sqrt((2 * height) / (LEAP_G * u));
+      tries.push({ t0: t, height: height, dur: dur, drift: (last ? -10 : rand(-4, 4)) * u, last: last });
+      t += dur + rand(0.7, 1.3);
+    }
+    this.leap = { born: this.time, tries: tries, koi: KOI[Math.floor(Math.random() * KOI.length)], fish: null };
+  };
+
+  ContactShore.prototype.updateLeap = function () {
+    var L = this.leap;
+    if (!L) {
+      if (!this.dragon && this.time >= this.nextLeap) this.startLeap();
+      return;
+    }
+    var F = this.falls;
+    var a = this.time - L.born;
+    L.fish = null;
+    for (var k = 0; k < L.tries.length; k++) {
+      var tr = L.tries[k];
+      if (a < tr.t0) break;
+      var s = (a - tr.t0) / tr.dur;
+      if (!tr.out) {
+        tr.out = true;
+        this.splash(F.x, F.base, 4);
+      }
+      // Over the gate: it becomes a dragon in a flash and a puff of cloud.
+      if (tr.last && s >= 0.5) {
+        var x = F.x + tr.drift * 0.5;
+        this.puff = { x: x, y: F.top, born: this.time };
+        this.spawnDragon(x, F.top);
+        this.leap = null;
+        return;
+      }
+      if (s >= 1) {
+        if (!tr.in) {
+          tr.in = true;
+          this.splash(F.x + tr.drift, F.base, 6);
+        }
+        continue;
+      }
+      var vx = tr.drift / tr.dur;
+      var vy = (-tr.height * 4 * (1 - 2 * s)) / tr.dur;
+      L.fish = { x: F.x + tr.drift * s, y: F.base - tr.height * 4 * s * (1 - s), ang: Math.atan2(vy, vx) };
+    }
+    if (a > L.tries[L.tries.length - 1].t0 + 10) this.leap = null;
+  };
+
+  ContactShore.prototype.splash = function (x, y, count) {
+    var u = this.falls.u;
+    for (var i = 0; i < count; i++) {
+      this.drops.push({ x: x + rand(-2, 2) * u, y: y - 2 * u, vx: rand(-22, 22) * u, vy: rand(-62, -30) * u, age: 0, life: rand(0.45, 0.7) });
+    }
+  };
+
+  ContactShore.prototype.updateDrops = function (dt) {
+    var g = LEAP_G * this.falls.u;
+    this.drops = this.drops.filter(function (d) {
+      d.age += dt;
+      d.vy += g * dt;
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      return d.age < d.life;
+    });
+    if (this.puff && this.time - this.puff.born > 6) this.puff = null;
+  };
+
+  // The dragon glides across the sky, small and far off behind the hills. It
+  // rises and dips slowly as it goes, its head rolling gently up and down,
+  // and the long body follows the same path, so it ripples like a ribbon. It
+  // swims out of the cloud over the gate, climbing away from the falls.
+  ContactShore.prototype.spawnDragon = function (x, y) {
     var w = this.w;
     var h = this.h;
     var u = h / 254;
-    var dir = Math.random() < 0.5 ? 1 : -1;
-    var len = Math.min(120, w * 0.24) * u;
-    this.dragon = {
-      dir: dir,
-      len: len,
+    var g = {
+      dir: x > w / 2 ? -1 : 1,
+      len: Math.min(120, w * 0.24) * u,
       speed: (w < 700 ? 24 : 32) * u,
-      x0: dir > 0 ? -40 : w + 40,
-      y: h * rand(0.2, 0.28),
+      x0: x,
+      y: h * rand(0.19, 0.25),
       amp: rand(6, 9) * u,
       wave: rand(1.9, 2.3),
       phase: rand(0, TAU),
       rise: h * rand(0.06, 0.08),
       climb: TAU / rand(28, 40),
-      tilt: rand(0, TAU),
+      tilt: Math.PI,
+      off: 0,
       born: this.time,
     };
+    g.off = y - dragonAt(g, 0).y;
+    this.dragon = g;
   };
 
+  // Where the head was t seconds after it appeared. Before that, the body is
+  // still gathered in the cloud.
   function dragonAt(g, t) {
+    t = Math.max(t, 0);
     return {
       x: g.x0 + g.dir * g.speed * t,
-      y: g.y + g.rise * Math.sin(g.climb * t + g.tilt) + g.amp * Math.sin(g.wave * t + g.phase) + g.amp * 0.35 * Math.sin(g.wave * 0.37 * t + 1.3),
+      y: g.y + g.rise * Math.sin(g.climb * t + g.tilt) + g.amp * Math.sin(g.wave * t + g.phase) + g.amp * 0.35 * Math.sin(g.wave * 0.37 * t + 1.3) + g.off * Math.exp(-t / 2.5),
     };
   }
 
   ContactShore.prototype.updateDragon = function () {
     var g = this.dragon;
-    if (!g) {
-      if (this.time >= this.nextDragon) this.spawnDragon();
-      return;
-    }
+    if (!g) return;
     var head = dragonAt(g, this.time - g.born);
     if ((g.dir > 0 && head.x > this.w + g.len + 60) || (g.dir < 0 && head.x < -g.len - 60)) {
       this.dragon = null;
-      this.nextDragon = this.time + rand(25, 45);
+      this.nextLeap = this.time + rand(25, 45);
     }
   };
 
@@ -631,23 +985,35 @@
     lc.moveTo(0, -13);
     lc.lineTo(-1.5, -17);
     lc.stroke();
-    // Two long whiskers trailing back from the nose, waving as it flies.
-    var w1 = Math.sin(age * 2) * 3;
-    var w3 = Math.sin(age * 2 - 1.2) * 4;
+    // Two long whiskers growing from the side of the snout by the upper lip,
+    // sweeping back and down along the face and streaming out behind under
+    // the jaw, waving as it flies.
+    var w1 = Math.sin(age * 2) * 2.5;
+    var w3 = Math.sin(age * 2 - 1.2) * 3.5;
     lc.lineWidth = 1.1;
     lc.beginPath();
-    lc.moveTo(29, -3.5);
-    lc.bezierCurveTo(22, -16 + w1, 8, -6 + w1, -10, -14 + w3);
-    lc.quadraticCurveTo(-22, -19 + w3, -32, -12 + w3);
-    lc.moveTo(28, -0.5);
-    lc.bezierCurveTo(20, 12 + w1, 6, 6 - w1, -10, 14 + w3);
-    lc.quadraticCurveTo(-20, 18 + w3, -30, 13 + w3);
+    lc.moveTo(25, -3);
+    lc.bezierCurveTo(23, 3 + w1 * 0.2, 18, 8 + w1 * 0.5, 8, 10 + w1);
+    lc.quadraticCurveTo(-8, 12 + w3, -20, 10 + w3);
+    lc.quadraticCurveTo(-28, 9 + w3, -33, 12 + w3);
+    lc.moveTo(26.5, -2);
+    lc.bezierCurveTo(26, 6 + w1 * 0.3, 21, 13 + w1 * 0.6, 11, 15 + w1);
+    lc.quadraticCurveTo(-4, 18 + w3, -18, 18 + w3);
+    lc.quadraticCurveTo(-27, 18 + w3, -32, 21 + w3);
     lc.stroke();
-    // The eye, cut out so the sky shows through.
+    // The eye, cut out so the sky shows through, and a faint line where the
+    // near whisker runs down the side of the face.
     lc.globalCompositeOperation = "destination-out";
     lc.beginPath();
     lc.ellipse(15.5, -5.6, 1.7, 1, -0.15, 0, TAU);
     lc.fill();
+    lc.globalAlpha = 0.5;
+    lc.lineWidth = 0.8;
+    lc.beginPath();
+    lc.moveTo(25, -3);
+    lc.quadraticCurveTo(23.6, 1.5 + w1 * 0.1, 21.6, 5);
+    lc.stroke();
+    lc.globalAlpha = 1;
     lc.globalCompositeOperation = "source-over";
     lc.restore();
 
@@ -656,6 +1022,15 @@
     lc.save();
     lc.globalCompositeOperation = "destination-out";
     this.drawMist(lc, 0.9);
+    // Until the tail is clear of the cloud over the gate, the cloud hides
+    // where the body is still gathered.
+    if (this.puff) {
+      var hide = clamp(g.len / g.speed + 1 - (this.time - this.puff.born), 0, 1);
+      var r = 26 * this.falls.u;
+      lc.globalAlpha = hide;
+      lc.drawImage(this.mistBlob, this.puff.x - r, this.puff.y - r, r * 2, r * 2);
+      lc.globalAlpha = 1;
+    }
     var fade = lc.createLinearGradient(pts[0].x, pts[0].y, pts[n].x, pts[n].y);
     fade.addColorStop(0, "rgba(0, 0, 0, 0)");
     fade.addColorStop(0.45, "rgba(0, 0, 0, 0.15)");
@@ -672,6 +1047,150 @@
     ctx.globalCompositeOperation = "source-over";
     ctx.drawImage(this.dragonLayer, 0, 0);
     ctx.restore();
+  };
+
+  // The falls: a pale sheet whose edges ripple downward, with soft threads of
+  // water that start slow at the lip and speed up as they fall, a bright
+  // curl where the water tips over, and spray billowing up at the foot.
+  ContactShore.prototype.drawFalls = function (ctx) {
+    var F = this.falls;
+    var u = F.u;
+    var n = this.night;
+    var t = this.still ? 0 : this.time;
+    var c = mix(DAY.falls, NIGHT.falls, n);
+    var top = F.lip - 0.3 * u;
+    var bot = F.base;
+    var fall = bot - top;
+    // Half the sheet's width at depth s (0 at the lip, 1 at the foot): it
+    // bulges a little as it leaves the ledge, then spreads as it falls.
+    function half(s) {
+      return (6 + 0.9 * Math.sin(Math.min(s * 9, Math.PI)) + 2.2 * s) * u;
+    }
+    function ripple(y, side) {
+      return Math.sin(y * 0.19 - t * 7 + side) * 0.45 * u + Math.sin(y * 0.07 - t * 3.1 + side * 2) * 0.35 * u;
+    }
+    var g = ctx.createLinearGradient(F.x - 9 * u, 0, F.x + 9 * u, 0);
+    g.addColorStop(0, css(c, 0));
+    g.addColorStop(0.2, css(c, 0.5));
+    g.addColorStop(0.5, css(c, 0.9));
+    g.addColorStop(0.8, css(c, 0.5));
+    g.addColorStop(1, css(c, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    var steps = 18;
+    var k;
+    var s;
+    var y;
+    for (k = 0; k <= steps; k++) {
+      s = k / steps;
+      y = top + s * fall;
+      ctx.lineTo(F.x - half(s) + (k ? ripple(y, 0) : 0), y);
+    }
+    for (k = steps; k >= 0; k--) {
+      s = k / steps;
+      y = top + s * fall;
+      ctx.lineTo(F.x + half(s) + (k ? ripple(y, 2.1) : 0), y);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // The threads: each one fades in below the lip, stretches as it speeds
+    // up, and fades into the spray.
+    var foam = this.foam;
+    var shade = this.shade;
+    var light = 0.55 - 0.25 * n;
+    this.streaks.forEach(function (st) {
+      var p = (st.phase + t * st.rate * 0.42) % 1;
+      var d = p * p;
+      var y0 = top + d * fall;
+      var len = (5 + 22 * p) * st.len * u;
+      var x0 = F.x + st.across * (half(d) - 1.6 * u) + Math.sin(y0 * 0.12 - t * 4 + st.sway) * 0.4 * u;
+      var a = Math.min(1, p * 6) * Math.min(1, (1 - p) * 4);
+      ctx.globalAlpha = a * (st.dark ? 0.5 : light) * (1 - 0.4 * Math.abs(st.across));
+      ctx.drawImage(st.dark ? shade : foam, x0 - 0.9 * u, y0 - len / 2, 1.8 * u, len);
+    });
+    ctx.globalAlpha = 1;
+
+    // The curl of water over the ledge.
+    ctx.globalAlpha = 0.6 - 0.3 * n;
+    ctx.drawImage(foam, F.x - 7.5 * u, top - 1.2 * u, 15 * u, 4 * u);
+    ctx.globalAlpha = 1;
+  };
+
+  ContactShore.prototype.drawSpray = function (ctx) {
+    var F = this.falls;
+    var u = F.u;
+    var t = this.still ? 0.4 : this.time;
+    var n = this.night;
+    var a = 0.45 - 0.22 * n;
+    ctx.globalAlpha = a;
+    ctx.drawImage(this.mistBlob, F.x - 26 * u, F.base - 8 * u, 52 * u, 14 * u);
+    // Puffs of spray that billow up from the foot and thin out.
+    for (var k = 0; k < 5; k++) {
+      var age = (t * 0.35 + k / 5) % 1;
+      var r = (5 + 11 * age) * u;
+      var x = F.x + (k - 2) * 3.5 * u + Math.sin(k * 2.3 + age * 3) * 3 * u;
+      var y = F.base - 3 * u - age * 13 * u;
+      ctx.globalAlpha = a * 0.9 * Math.sin(Math.PI * age);
+      ctx.drawImage(this.mistBlob, x - r, y - r * 0.6, r * 2, r * 1.2);
+    }
+    ctx.fillStyle = "rgba(240, 248, 255, " + (0.85 - 0.4 * n) + ")";
+    this.drops.forEach(function (d) {
+      ctx.globalAlpha = 1 - d.age / d.life;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, 0.8 * u, 0, TAU);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  };
+
+  // The koi in mid-leap, seen from the side, its tail flicking.
+  ContactShore.prototype.drawKoi = function (ctx) {
+    var f = this.leap.fish;
+    var koi = this.leap.koi;
+    var L = 8 * this.falls.u;
+    var flick = Math.sin(this.time * 18) * L * 0.06;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.ang);
+    if (Math.cos(f.ang) < 0) ctx.scale(1, -1);
+    ctx.globalAlpha = 0.92 - 0.4 * this.night;
+    ctx.fillStyle = koi[0];
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.26, 0);
+    ctx.lineTo(-L * 0.56, -L * 0.17 + flick);
+    ctx.quadraticCurveTo(-L * 0.46, flick * 0.5, -L * 0.56, L * 0.17 + flick);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(0, 0, L * 0.32, L * 0.12, 0, 0, TAU);
+    ctx.fill();
+    if (koi[1]) {
+      ctx.fillStyle = koi[1];
+      ctx.beginPath();
+      ctx.ellipse(L * 0.04, -L * 0.03, L * 0.14, L * 0.07, 0, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  };
+
+  // As the koi clears the gate: a flash of light, then a cloud the dragon
+  // swims out of, which drifts apart.
+  ContactShore.prototype.drawPuff = function (ctx) {
+    var P = this.puff;
+    var a = this.time - P.born;
+    var u = this.falls.u;
+    if (a < 1) {
+      ctx.globalAlpha = (1 - a) * (1 - a) * (0.9 - 0.3 * this.night);
+      ctx.drawImage(this.sunGlow, P.x - 24 * u, P.y - 24 * u, 48 * u, 48 * u);
+    }
+    var r = (10 + 22 * (1 - Math.exp(-a * 1.2))) * u;
+    var drift = a * 3 * u;
+    ctx.globalAlpha = Math.min(1, a / 0.3) * clamp((6 - a) / 3, 0, 1) * (0.42 - 0.2 * this.night);
+    ctx.drawImage(this.mistBlob, P.x - r, P.y - r * 0.4, r * 2, r * 0.8);
+    ctx.drawImage(this.mistBlob, P.x - r * 1.2 - drift, P.y - r * 0.15, r * 1.2, r * 0.5);
+    ctx.drawImage(this.mistBlob, P.x + drift, P.y - r * 0.35, r * 1.1, r * 0.55);
+    ctx.globalAlpha = 1;
   };
 
   // Where the dragonfly sits on button k: on top of the circle, legs touching it.
@@ -866,7 +1385,15 @@
       m.x += m.speed * dt;
       if (m.x - m.len / 2 > w) m.x = -m.len / 2;
     });
+    this.seas.forEach(function (sea) {
+      sea.banks.forEach(function (b) {
+        b.x += sea.speed * dt;
+        if (b.x - b.len / 2 > w) b.x -= sea.span + b.len;
+      });
+    });
     this.updateDragonfly(dt);
+    this.updateLeap();
+    this.updateDrops(dt);
     this.updateDragon();
   };
 
@@ -882,7 +1409,15 @@
     }
     if (this.dragon) this.drawDragon(ctx);
     this.drawMist(ctx, 0.13 - 0.07 * n);
-    this.drawLayer(ctx);
+    this.drawLayer(ctx, 0);
+    this.drawFalls(ctx);
+    if (this.leap && this.leap.fish) this.drawKoi(ctx);
+    this.drawSpray(ctx);
+    if (this.puff) this.drawPuff(ctx);
+    this.drawSea(ctx, this.seas[0]);
+    this.drawLayer(ctx, 1);
+    this.drawSea(ctx, this.seas[1]);
+    this.drawLayer(ctx, 2);
     if (n < 1) this.drawMotes(ctx);
     if (n > 0) this.drawFireflies(ctx);
 
