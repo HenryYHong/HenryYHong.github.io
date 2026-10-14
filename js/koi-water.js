@@ -11,6 +11,33 @@
     "void main() { gl_Position = vec4(aPos, 0.0, 1.0); }",
   ].join("\n");
 
+  // Blurs one axis of a layer's alpha for the shadows. Two passes, across then
+  // down, make a true Gaussian, so a shadow keeps its shape as it slides
+  // instead of snapping to a coarse grid.
+  var BLUR = [
+    "#ifdef GL_FRAGMENT_PRECISION_HIGH",
+    "precision highp float;",
+    "#else",
+    "precision mediump float;",
+    "#endif",
+    "uniform sampler2D uSrc;",
+    "uniform vec2 uSize;",
+    "uniform vec2 uStep;",
+    "uniform float uFall;",
+    "void main() {",
+    "  vec2 uv = gl_FragCoord.xy / uSize;",
+    "  float sum = texture2D(uSrc, uv).a;",
+    "  float total = 1.0;",
+    "  for (int i = 1; i <= 32; i++) {",
+    "    float f = float(i);",
+    "    float w = exp(f * f * uFall);",
+    "    sum += (texture2D(uSrc, uv + uStep * f).a + texture2D(uSrc, uv - uStep * f).a) * w;",
+    "    total += 2.0 * w;",
+    "  }",
+    "  gl_FragColor = vec4(0.0, 0.0, 0.0, sum / total);",
+    "}",
+  ].join("\n");
+
   var FRAG = [
     "#ifdef GL_FRAGMENT_PRECISION_HIGH",
     "precision highp float;",
@@ -53,21 +80,6 @@
     "}",
 
 
-    // Shadow layers are small, already-blurred copies of the fish and pads; a
-    // few overlapping taps on top of the texture's own smoothing keep them soft.
-    "float shade(sampler2D tex, vec2 p, float r) {",
-    "  vec2 px = 1.0 / uRes;",
-    "  float a = texture2D(tex, p * px).a * 0.25;",
-    "  a += texture2D(tex, (p + vec2(r, 0.0)) * px).a * 0.125;",
-    "  a += texture2D(tex, (p - vec2(r, 0.0)) * px).a * 0.125;",
-    "  a += texture2D(tex, (p + vec2(0.0, r)) * px).a * 0.125;",
-    "  a += texture2D(tex, (p - vec2(0.0, r)) * px).a * 0.125;",
-    "  a += texture2D(tex, (p + vec2(r, r)) * px).a * 0.0625;",
-    "  a += texture2D(tex, (p - vec2(r, r)) * px).a * 0.0625;",
-    "  a += texture2D(tex, (p + vec2(r, -r)) * px).a * 0.0625;",
-    "  a += texture2D(tex, (p - vec2(r, -r)) * px).a * 0.0625;",
-    "  return a;",
-    "}",
     "float soft(sampler2D tex, vec2 p, float r) {",
     "  vec2 px = 1.0 / uRes;",
     "  float d = r * 0.7071;",
@@ -148,8 +160,8 @@
 
     // Shadows land well away from what casts them and spread out on the way
     // down, since the floor is deep.
-    "  float fishSh = shade(uFishShade, fp - vec2(18.0, 23.0), 7.0);",
-    "  float padSh = shade(uPadShade, fp - vec2(24.0, 30.0), 9.0);",
+    "  float fishSh = texture2D(uFishShade, (fp - vec2(18.0, 23.0)) / uRes).a;",
+    "  float padSh = texture2D(uPadShade, (fp - vec2(24.0, 30.0)) / uRes).a;",
     "  float sh = clamp(fishSh * 0.75 + padSh * 0.85, 0.0, 0.9);",
     // Light on the floor. A pond floor doesn't show the net of bright lines a
     // pool does; its light is broad and soft: slow swells of brightness under
@@ -257,7 +269,10 @@
   var CURVE_RANGE = 3; // must match the 6.0 decode (2 * range) in the shader
   var DROP_SLOTS = 12; // must match uDrops[12] in the shader
   var MOON_SRC = "assets/img/moon.jpg"; // NASA/GSFC/Arizona State University, public domain
-  var SHADE_SCALE = 6; // CSS px per texel of the blurred shadow layers
+  var SHADE_SCALE = 4; // CSS px per texel of the blurred shadow layers
+  var FISH_BLUR = 5.6; // CSS px, how far fish shadows spread on the floor
+  var PAD_BLUR = 6.9; // CSS px, the same for lily pads, which float higher
+  var BLUR_TAPS = 32; // must match the loop in BLUR
 
   function compile(gl, type, src) {
     var sh = gl.createShader(type);
@@ -296,11 +311,11 @@
     this.drops = new Float32Array(DROP_SLOTS * 4);
     this.dropNext = 0;
     this.moonImage = null;
-    // Small copies of the fish and pad layers; shrinking them blurs them smoothly.
-    this.fishShade = document.createElement("canvas");
-    this.padShade = document.createElement("canvas");
-    this.fishShadeCtx = this.fishShade.getContext("2d");
-    this.padShadeCtx = this.padShade.getContext("2d");
+    // Blurred copies of the fish and pad layers for their shadows, plus the
+    // half-done blur in between.
+    this.fishShade = null;
+    this.padShade = null;
+    this.blurMid = null;
 
     var self = this;
     this._onLost = function (e) {
@@ -311,6 +326,7 @@
       self.lost = false;
       if (self.setup()) {
         self.allocGrid();
+        self.allocShade();
         if (self.padSource) self.setPads(self.padSource);
         if (self.moonImage) self.uploadMoon(self.moonImage);
         if (self.onRestore) self.onRestore();
@@ -373,6 +389,23 @@
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
+    var bfs = compile(gl, gl.FRAGMENT_SHADER, BLUR);
+    if (!bfs) return false;
+    var blur = gl.createProgram();
+    gl.attachShader(blur, vs);
+    gl.attachShader(blur, bfs);
+    gl.bindAttribLocation(blur, 0, "aPos");
+    gl.linkProgram(blur);
+    if (!gl.getProgramParameter(blur, gl.LINK_STATUS)) {
+      if (window.console) console.warn("koi water link:", gl.getProgramInfoLog(blur));
+      return false;
+    }
+    this.blurProg = blur;
+    this.bu = {};
+    ["uSrc", "uSize", "uStep", "uFall"].forEach(function (name) {
+      this.bu[name] = gl.getUniformLocation(blur, name);
+    }, this);
+
     var u = {};
     ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
@@ -390,10 +423,9 @@
     this.rippleTex = this.makeTexture(2);
     this.moonTex = this.makeTexture(3);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([230, 233, 240, 255]));
-    this.fishShadeTex = this.makeTexture(4);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
-    this.padShadeTex = this.makeTexture(5);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+    this.fishShade = this.makeTarget(4);
+    this.padShade = this.makeTarget(5);
+    this.blurMid = this.makeTarget(6);
     var empty = new Uint8Array([0, 0, 0, 0]);
     gl.activeTexture(gl.TEXTURE1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, empty);
@@ -414,6 +446,76 @@
     return tex;
   };
 
+  // A texture the blur can draw into, kept on its own texture unit.
+  KoiWater.prototype.makeTarget = function (unit) {
+    var gl = this.gl;
+    var tex = this.makeTexture(unit);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+    var fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return { unit: unit, tex: tex, fb: fb, w: 1, h: 1 };
+  };
+
+  KoiWater.prototype.sizeTarget = function (target, w, h) {
+    if (target.w === w && target.h === h) return;
+    var gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0 + target.unit);
+    gl.bindTexture(gl.TEXTURE_2D, target.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    target.w = w;
+    target.h = h;
+  };
+
+  // The shadows are stored at a quarter of the pond's size. They are blurred
+  // before they are shrunk, so nothing is lost.
+  KoiWater.prototype.allocShade = function () {
+    if (this.lost || !this.w || !this.fishShade) return;
+    var sw = Math.max(1, Math.ceil(this.w / SHADE_SCALE));
+    var sh = Math.max(1, Math.ceil(this.h / SHADE_SCALE));
+    this.sizeTarget(this.fishShade, sw, sh);
+    this.sizeTarget(this.padShade, sw, sh);
+    if (this.padSource) this.blurInto(this.padShade, 1, this.padSource, PAD_BLUR);
+  };
+
+  // Gaussian blur of the layer on texture unit `unit` into `target`: across
+  // into blurMid at the layer's full height, then down into the target. Taps
+  // sit two device pixels apart, so with the texture's own smoothing every
+  // pixel of the layer counts the same however a fish lines up with them.
+  KoiWater.prototype.blurInto = function (target, unit, source, sigma) {
+    var gl = this.gl;
+    var bu = this.bu;
+    var srcW = source.width;
+    var srcH = source.height;
+    if (!srcW || !srcH) return;
+    var dev = srcW / this.w;
+    var sigmaDev = sigma * dev;
+    var spacing = Math.max(2, (3 * sigmaDev) / BLUR_TAPS);
+    var fall = -(spacing * spacing) / (2 * sigmaDev * sigmaDev);
+    var mid = this.blurMid;
+    this.sizeTarget(mid, target.w, srcH);
+    gl.useProgram(this.blurProg);
+    gl.uniform1f(bu.uFall, fall);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, mid.fb);
+    gl.viewport(0, 0, mid.w, mid.h);
+    gl.uniform1i(bu.uSrc, unit);
+    gl.uniform2f(bu.uSize, mid.w, mid.h);
+    gl.uniform2f(bu.uStep, spacing / srcW, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb);
+    gl.viewport(0, 0, target.w, target.h);
+    gl.uniform1i(bu.uSrc, mid.unit);
+    gl.uniform2f(bu.uSize, target.w, target.h);
+    gl.uniform2f(bu.uStep, 0, spacing / srcH);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.useProgram(this.prog);
+  };
+
   KoiWater.prototype.resize = function (w, h, dpr, top) {
     this.w = w;
     this.h = h;
@@ -421,22 +523,8 @@
     this.top = top || 0;
     this.canvas.width = Math.floor(w * dpr);
     this.canvas.height = Math.floor(h * dpr);
-    var sw = Math.max(1, Math.ceil(w / SHADE_SCALE));
-    var sh = Math.max(1, Math.ceil(h / SHADE_SCALE));
-    [this.fishShade, this.padShade].forEach(function (c) {
-      c.width = sw;
-      c.height = sh;
-    });
     this.allocGrid();
-  };
-
-  // Draw a layer into its small shadow copy, letting the browser average it down.
-  KoiWater.prototype.shrink = function (ctx, source) {
-    var c = ctx.canvas;
-    ctx.clearRect(0, 0, c.width, c.height);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(source, 0, 0, c.width, c.height);
+    this.allocShade();
   };
 
   KoiWater.prototype.allocGrid = function () {
@@ -629,8 +717,7 @@
     this.padSource = padCanvas;
     if (this.lost) return;
     this.uploadCanvas(1, padCanvas);
-    this.shrink(this.padShadeCtx, padCanvas);
-    this.uploadCanvas(5, this.padShade);
+    if (this.w) this.blurInto(this.padShade, 1, padCanvas, PAD_BLUR);
   };
 
   KoiWater.prototype.render = function (seconds, fishCanvas) {
@@ -639,8 +726,7 @@
     var u = this.u;
     if (fishCanvas) {
       this.uploadCanvas(0, fishCanvas);
-      this.shrink(this.fishShadeCtx, fishCanvas);
-      this.uploadCanvas(4, this.fishShade);
+      this.blurInto(this.fishShade, 0, fishCanvas, FISH_BLUR);
     }
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.uniform2f(u.uRes, this.w, this.h);
@@ -671,9 +757,12 @@
       gl.deleteTexture(this.padTex);
       gl.deleteTexture(this.rippleTex);
       gl.deleteTexture(this.moonTex);
-      gl.deleteTexture(this.fishShadeTex);
-      gl.deleteTexture(this.padShadeTex);
+      [this.fishShade, this.padShade, this.blurMid].forEach(function (target) {
+        gl.deleteTexture(target.tex);
+        gl.deleteFramebuffer(target.fb);
+      });
       gl.deleteProgram(this.prog);
+      gl.deleteProgram(this.blurProg);
     }
   };
 
