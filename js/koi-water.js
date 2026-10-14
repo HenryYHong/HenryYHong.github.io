@@ -61,8 +61,6 @@
     "uniform sampler2D uPadShade;",
     "uniform float uMoonReady;",
     "uniform vec3 uDipper[7];",
-    "uniform vec4 uMeteor;",
-    "uniform vec2 uMeteorV;",
 
     "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
     "float noise(vec2 p) {",
@@ -218,9 +216,9 @@
     "    col = mix(col, moonCol, disc * 0.85 * uNight);",
     "    col += vec3(0.55, 0.68, 0.9) * exp(-md * md / (moonR * moonR * 9.0)) * 0.16 * uNight;",
     "  }",
-    // The rest of the night sky in the water: faint stars, the Big Dipper
-    // (mirrored, as in any reflection) and now and then a shooting star. Like
-    // the moon they hold still, and ripples from food and fish break them up.
+    // The rest of the night sky in the water: faint stars and the Big Dipper
+    // (mirrored, as in any reflection). Like the moon they hold still, and
+    // ripples from food and fish break them up.
     "  if (uNight > 0.0) {",
     "    vec2 sp = p + rg * 0.25 + dropG * 1.5;",
     "    vec2 sc = sp / 19.0;",
@@ -233,16 +231,6 @@
     "      vec2 d = sp - uDipper[i].xy;",
     "      float dd = dot(d, d);",
     "      sky += uDipper[i].z * (exp(-dd * 0.5) + 0.2 * exp(-dd * 0.04)) * (0.85 + 0.15 * sin(uTime * 1.3 + float(i) * 1.7));",
-    "    }",
-    "    float age = uTime - uMeteor.z;",
-    "    if (age > 0.0 && age < uMeteor.w) {",
-    "      vec2 dir = normalize(uMeteorV);",
-    "      vec2 rel = sp - (uMeteor.xy + uMeteorV * age);",
-    "      float behind = -dot(rel, dir);",
-    "      float across = dot(rel, vec2(-dir.y, dir.x));",
-    "      float tail = 130.0 * min(1.0, age / 0.15);",
-    "      float fade = pow(sin(3.14159 * age / uMeteor.w), 0.7);",
-    "      sky += exp(-across * across * 1.2) * smoothstep(tail, 0.0, behind) * step(-1.2, behind) * fade * 1.1;",
     "    }",
     "    sky *= smoothstep(moonR, moonR * 1.3, md) * mix(0.6, 1.0, smoothstep(0.6, 1.4, length(mid)));",
     "    col += vec3(0.85, 0.9, 1.0) * sky * uNight;",
@@ -386,9 +374,6 @@
     this.dropNext = 0;
     this.moonImage = null;
     this.dipper = new Float32Array(21);
-    this.meteor = new Float32Array([0, 0, -10, 1]);
-    this.meteorV = new Float32Array([1, 0]);
-    this.nextMeteor = 3;
     // Blurred copies of the fish and pad layers for their shadows, plus the
     // half-done blur in between.
     this.fishShade = null;
@@ -485,7 +470,7 @@
     }, this);
 
     var u = {};
-    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade", "uFood", "uDipper", "uMeteor", "uMeteorV"].forEach(function (name) {
+    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade", "uFood", "uDipper"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
     });
     this.u = u;
@@ -699,24 +684,6 @@
     }
   };
 
-  // A shooting star's reflection every so often while it's night.
-  KoiWater.prototype.updateMeteor = function () {
-    if (this.nextMeteor - this.time > 20) this.nextMeteor = this.time + 5; // the clock wrapped
-    if (this.night < 0.5 || this.time < this.nextMeteor || this.time < this.meteor[2] + this.meteor[3]) return;
-    var w = this.w;
-    var top = this.top;
-    var dir = Math.random() < 0.5 ? -1 : 1;
-    var angle = 0.25 + Math.random() * 0.3;
-    var speed = 380 + Math.random() * 220;
-    this.meteor[0] = w * (0.1 + Math.random() * 0.8);
-    this.meteor[1] = top + (this.h - top) * Math.random() * 0.4;
-    this.meteor[2] = this.time;
-    this.meteor[3] = 0.6 + Math.random() * 0.4;
-    this.meteorV[0] = Math.cos(angle) * speed * dir;
-    this.meteorV[1] = Math.sin(angle) * speed;
-    this.nextMeteor = this.time + 5 + Math.random() * 7;
-  };
-
   // Push the surface down (amount > 0) in a soft dot of the given radius.
   KoiWater.prototype.disturb = function (x, y, radius, amount) {
     if (!this.height) return;
@@ -889,10 +856,7 @@
     gl.uniform1f(u.uTop, this.top);
     gl.uniform2f(u.uGrid, this.gw, this.gh);
     gl.uniform1f(u.uCell, this.cell);
-    this.updateMeteor();
     gl.uniform3fv(u.uDipper, this.dipper);
-    gl.uniform4fv(u.uMeteor, this.meteor);
-    gl.uniform2fv(u.uMeteorV, this.meteorV);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   };
 
