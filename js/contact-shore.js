@@ -93,6 +93,20 @@
     return c;
   }
 
+  // A soft patch of mist, stretched into wisps when drawn.
+  function makeMist() {
+    var c = document.createElement("canvas");
+    c.width = c.height = 64;
+    var g = c.getContext("2d");
+    var grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+    grad.addColorStop(0.45, "rgba(255, 255, 255, 0.6)");
+    grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    return c;
+  }
+
   function isNight() {
     return document.documentElement.getAttribute("data-theme") === "dark";
   }
@@ -106,6 +120,7 @@
     this.fctx = front.getContext("2d");
     this.buttons = Array.prototype.slice.call(section.querySelectorAll(".contact-socials .btn-social"));
     this.starGlow = makeGlow("235, 242, 255");
+    this.mistBlob = makeMist();
     this.fireGlow = makeGlow("214, 255, 120");
     this.sunGlow = makeGlow("255, 246, 214");
     this.layers = {};
@@ -193,6 +208,31 @@
     for (i = 0; i < Math.round(clamp(w / 120, 4, 12)); i++) {
       this.motes.push({ x: rand(0, w), y: rand(0, h), vx: rand(-4, 4), vy: rand(-6, -2), phase: rand(0, TAU), r: rand(0.8, 1.6) });
     }
+    // Faint wisps of mist drifting across the sky, where the dragon flies.
+    this.wisps = [];
+    for (i = 0; i < Math.max(2, Math.round(w / 260)); i++) {
+      this.wisps.push({
+        x: rnd() * w,
+        y: h * (0.1 + rnd() * 0.3),
+        len: (110 + rnd() * 120) * u,
+        thick: (28 + rnd() * 18) * u,
+        speed: (3 + rnd() * 4) * u,
+        alpha: 0.6 + rnd() * 0.4,
+      });
+    }
+  };
+
+  ContactShore.prototype.drawMist = function (ctx, alpha) {
+    var blob = this.mistBlob;
+    ctx.save();
+    this.wisps.forEach(function (m) {
+      ctx.globalAlpha = alpha * m.alpha;
+      ctx.drawImage(blob, m.x - m.len / 2, m.y - m.thick * 0.35, m.len, m.thick * 0.7);
+      ctx.drawImage(blob, m.x - m.len * 0.42, m.y - m.thick * 0.55, m.len * 0.45, m.thick * 0.85);
+      ctx.drawImage(blob, m.x - m.len * 0.08, m.y - m.thick * 0.5, m.len * 0.4, m.thick);
+      ctx.drawImage(blob, m.x + m.len * 0.12, m.y - m.thick * 0.3, m.len * 0.32, m.thick * 0.6);
+    });
+    ctx.restore();
   };
 
   // The hills never move, so they're painted once for day and once for night.
@@ -335,8 +375,8 @@
   };
 
   // Now and then a dragon glides across the sky, small and far off behind the
-  // hills. Its head rolls gently up and down as it flies, and the long body
-  // follows the same path, so it ripples like a ribbon.
+  // hills. It rises and dips slowly as it goes, its head rolling gently up and
+  // down, and the long body follows the same path, so it ripples like a ribbon.
   ContactShore.prototype.spawnDragon = function () {
     var w = this.w;
     var h = this.h;
@@ -348,10 +388,13 @@
       len: len,
       speed: (w < 700 ? 24 : 32) * u,
       x0: dir > 0 ? -40 : w + 40,
-      y: h * rand(0.16, 0.3),
+      y: h * rand(0.2, 0.28),
       amp: rand(6, 9) * u,
       wave: rand(1.9, 2.3),
       phase: rand(0, TAU),
+      rise: h * rand(0.06, 0.08),
+      climb: TAU / rand(28, 40),
+      tilt: rand(0, TAU),
       born: this.time,
     };
   };
@@ -359,7 +402,7 @@
   function dragonAt(g, t) {
     return {
       x: g.x0 + g.dir * g.speed * t,
-      y: g.y + g.amp * Math.sin(g.wave * t + g.phase) + g.amp * 0.35 * Math.sin(g.wave * 0.37 * t + 1.3),
+      y: g.y + g.rise * Math.sin(g.climb * t + g.tilt) + g.amp * Math.sin(g.wave * t + g.phase) + g.amp * 0.35 * Math.sin(g.wave * 0.37 * t + 1.3),
     };
   }
 
@@ -590,6 +633,19 @@
     lc.globalCompositeOperation = "source-over";
     lc.restore();
 
+    // It fades where it passes through mist, and its tail always trails off
+    // into haze: the divine dragon shows its head but not its tail.
+    lc.save();
+    lc.globalCompositeOperation = "destination-out";
+    this.drawMist(lc, 0.9);
+    var fade = lc.createLinearGradient(pts[0].x, pts[0].y, pts[n].x, pts[n].y);
+    fade.addColorStop(0, "rgba(0, 0, 0, 0)");
+    fade.addColorStop(0.45, "rgba(0, 0, 0, 0.15)");
+    fade.addColorStop(1, "rgba(0, 0, 0, 0.85)");
+    lc.fillStyle = fade;
+    lc.fillRect(0, 0, this.w, this.h);
+    lc.restore();
+
     // Fade the whole silhouette onto the sky, hazy with distance: blue-grey by
     // day, dark at night.
     ctx.save();
@@ -793,6 +849,10 @@
       if (m.x < -10) m.x = w + 10;
       if (m.x > w + 10) m.x = -10;
     });
+    this.wisps.forEach(function (m) {
+      m.x += m.speed * dt;
+      if (m.x - m.len / 2 > w) m.x = -m.len / 2;
+    });
     this.updateDragonfly(dt);
     this.updateDragon();
   };
@@ -808,6 +868,7 @@
       this.drawDipper(ctx);
     }
     if (this.dragon) this.drawDragon(ctx);
+    this.drawMist(ctx, 0.13 - 0.07 * n);
     this.drawLayer(ctx);
     if (n < 1) this.drawMotes(ctx);
     if (n > 0) this.drawFireflies(ctx);
