@@ -477,7 +477,9 @@
     lc.fill();
 
     // Legs, in each one's own frame on the body: forward toward the head and
-    // down toward the belly. Front legs reach forward, back legs push back.
+    // down toward the belly. As in Chinese art they're short and sturdy next
+    // to the long body, held out with the claws spread as if gripping cloud:
+    // front legs reach forward, back legs push back.
     function leg(p, front, phase, scale) {
       var dn = -1;
       function at(fx, dy) {
@@ -489,18 +491,18 @@
         return [v[0] * c - v[1] * sn, v[0] * sn + v[1] * c];
       }
       var u = T * scale;
-      var swing = 0.25 * Math.sin(age * 1.8 + phase);
-      var e = turn(front ? [0.55 * u, 1.3 * u] : [-0.45 * u, 1.25 * u], swing);
-      var w2 = turn(front ? [0.85 * u, 0.55 * u] : [-0.85 * u, 0.6 * u], swing * 1.4);
+      var swing = 0.08 * Math.sin(age * 1.1 + phase);
+      var e = turn(front ? [0.6 * u, 0.75 * u] : [-0.55 * u, 0.75 * u], swing);
+      var w2 = turn(front ? [0.55 * u, 0.3 * u] : [-0.55 * u, 0.35 * u], swing * 1.4);
       var root = at(0, 0.2 * u);
       var elbow = at(e[0], e[1]);
       var wrist = at(e[0] + w2[0], e[1] + w2[1]);
-      lc.lineWidth = 0.62 * u;
+      lc.lineWidth = 0.7 * u;
       lc.beginPath();
       lc.moveTo(root[0], root[1]);
       lc.lineTo(elbow[0], elbow[1]);
       lc.stroke();
-      lc.lineWidth = 0.42 * u;
+      lc.lineWidth = 0.5 * u;
       lc.beginPath();
       lc.moveTo(elbow[0], elbow[1]);
       lc.lineTo(wrist[0], wrist[1]);
@@ -520,8 +522,8 @@
       lc.lineWidth = Math.max(0.9, 0.17 * u);
       lc.beginPath();
       for (var c = 0; c < 4; c++) {
-        var spread = (c - 1.5) * 0.45;
-        var dir = turn(front ? [0.75 * u, 0.15 * u] : [-0.75 * u, 0.2 * u], spread + swing);
+        var spread = (c - 1.5) * 0.55;
+        var dir = turn(front ? [0.6 * u, 0.15 * u] : [-0.6 * u, 0.2 * u], spread + swing);
         var mid = at(e[0] + w2[0] + dir[0] * 0.6, e[1] + w2[1] + dir[1] * 0.6);
         var tip2 = at(e[0] + w2[0] + dir[0], e[1] + w2[1] + dir[1] + 0.3 * u);
         lc.moveTo(wrist[0], wrist[1]);
