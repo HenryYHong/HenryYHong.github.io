@@ -2,9 +2,10 @@
   "use strict";
 
   // The far side of the koi pond behind the contact section: the sky the pond
-  // reflects over soft layers of misty hills. At night, stars with the Big
-  // Dipper among them, and fireflies; by day, a little pollen in the light and
-  // now and then a dragonfly, which sometimes lands on one of the buttons.
+  // reflects over soft layers of misty hills, where now and then a dragon
+  // glides by in the distance. At night, stars with the Big Dipper among them,
+  // and fireflies; by day, a little pollen in the light and now and then a
+  // dragonfly, which sometimes lands on one of the buttons.
 
   var TAU = Math.PI * 2;
 
@@ -119,6 +120,8 @@
     this.stars = [];
     this.dragonfly = null;
     this.nextDragonfly = rand(6, 12);
+    this.dragon = null;
+    this.nextDragon = rand(4, 7);
     this.visible = false;
     this.running = false;
     this.raf = 0;
@@ -328,6 +331,185 @@
     this.dragonfly = { x: fromLeft ? -40 : w + 40, y: h * rand(0.3, 0.6), stops: stops, wait: 0, perched: null, face: fromLeft ? 1 : -1 };
   };
 
+  // Now and then a dragon glides across the sky, far off behind the hills. Its
+  // head rolls gently up and down as it flies, and the long body follows the
+  // same path, so it ripples like a ribbon.
+  ContactShore.prototype.spawnDragon = function () {
+    var w = this.w;
+    var h = this.h;
+    var u = h / 254;
+    var dir = Math.random() < 0.5 ? 1 : -1;
+    var len = Math.min(260, w * 0.45) * u;
+    this.dragon = {
+      dir: dir,
+      len: len,
+      speed: (w < 700 ? 55 : 80) * u,
+      x0: dir > 0 ? -40 : w + 40,
+      y: h * rand(0.24, 0.34),
+      amp: rand(18, 24) * u,
+      wave: rand(1.9, 2.3),
+      phase: rand(0, TAU),
+      born: this.time,
+    };
+  };
+
+  function dragonAt(g, t) {
+    return {
+      x: g.x0 + g.dir * g.speed * t,
+      y: g.y + g.amp * Math.sin(g.wave * t + g.phase) + g.amp * 0.35 * Math.sin(g.wave * 0.37 * t + 1.3),
+    };
+  }
+
+  ContactShore.prototype.updateDragon = function () {
+    var g = this.dragon;
+    if (!g) {
+      if (this.time >= this.nextDragon) this.spawnDragon();
+      return;
+    }
+    var head = dragonAt(g, this.time - g.born);
+    if ((g.dir > 0 && head.x > this.w + g.len + 60) || (g.dir < 0 && head.x < -g.len - 60)) {
+      this.dragon = null;
+      this.nextDragon = this.time + rand(25, 45);
+    }
+  };
+
+  // The dragon as one soft silhouette: body and spines, legs with claws, a
+  // horned head with long whiskers, and a flame-like tuft at the tail.
+  ContactShore.prototype.drawDragon = function (ctx) {
+    var g = this.dragon;
+    var age = this.time - g.born;
+    var n = 48;
+    var step = g.len / n;
+    var thick = g.len * 0.05;
+    var pts = [];
+    var i;
+    for (i = 0; i <= n; i++) pts.push(dragonAt(g, age - (i * step) / g.speed));
+    // Direction toward the head, the side facing up, and the body's thickness.
+    for (i = 0; i <= n; i++) {
+      var a = pts[Math.max(i - 1, 0)];
+      var b = pts[Math.min(i + 1, n)];
+      var tx = a.x - b.x;
+      var ty = a.y - b.y;
+      var tl = Math.hypot(tx, ty) || 1;
+      pts[i].tx = tx / tl;
+      pts[i].ty = ty / tl;
+      pts[i].nx = g.dir * pts[i].ty;
+      pts[i].ny = -g.dir * pts[i].tx;
+      var f = i / n;
+      pts[i].th = f < 0.08 ? thick * (0.75 + (0.25 * f) / 0.08) : thick * (1 - 0.88 * Math.pow((f - 0.08) / 0.92, 1.1));
+    }
+    var color = "rgba(" + Math.round(22 - 16 * this.night) + ", " + Math.round(42 - 30 * this.night) + ", " + Math.round(64 - 36 * this.night) + ", " + (0.5 + 0.35 * this.night).toFixed(3) + ")";
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    ctx.beginPath();
+    for (i = 0; i <= n; i++) {
+      var p = pts[i];
+      ctx[i ? "lineTo" : "moveTo"](p.x + (p.nx * p.th) / 2, p.y + (p.ny * p.th) / 2);
+    }
+    for (i = n; i >= 0; i--) {
+      ctx.lineTo(pts[i].x - (pts[i].nx * pts[i].th) / 2, pts[i].y - (pts[i].ny * pts[i].th) / 2);
+    }
+    ctx.closePath();
+    // Spines along the back, raked toward the tail.
+    for (i = 4; i < n - 2; i += 2) {
+      var q = pts[i];
+      var top = q.th / 2;
+      var spike = q.th * 0.45 + 1;
+      ctx.moveTo(q.x + q.nx * top + q.tx * step * 0.45, q.y + q.ny * top + q.ty * step * 0.45);
+      ctx.lineTo(q.x + q.nx * (top + spike) - q.tx * step * 0.6, q.y + q.ny * (top + spike) - q.ty * step * 0.6);
+      ctx.lineTo(q.x + q.nx * top - q.tx * step * 0.45, q.y + q.ny * top - q.ty * step * 0.45);
+    }
+    // The tail ends in a flickering tuft.
+    var e = pts[n];
+    var tuft = g.len * 0.07;
+    for (var lobe = -1; lobe <= 1; lobe++) {
+      var sway = Math.sin(age * 3 + lobe) * tuft * 0.15;
+      var ex = e.x - e.tx * tuft + e.nx * (lobe * tuft * 0.35 + sway);
+      var ey = e.y - e.ty * tuft + e.ny * (lobe * tuft * 0.35 + sway);
+      ctx.moveTo(e.x + e.nx * 1.5, e.y + e.ny * 1.5);
+      ctx.quadraticCurveTo(e.x - e.tx * tuft * 0.4 + e.nx * lobe * tuft * 0.5, e.y - e.ty * tuft * 0.4 + e.ny * lobe * tuft * 0.5, ex, ey);
+      ctx.quadraticCurveTo(e.x - e.tx * tuft * 0.35, e.y - e.ty * tuft * 0.35, e.x - e.nx * 1.5, e.y - e.ny * 1.5);
+    }
+    ctx.fill();
+
+    // Four legs, front and back, paddling slowly, each with three claws.
+    [0.2, 0.6].forEach(function (at, pair) {
+      [-1, 1].forEach(function (side) {
+        var p = pts[Math.round(at * n) + side];
+        var paddle = Math.sin(age * 2 + pair * 1.6 + side) * 0.35;
+        var reach = pair === 0 ? 1 : -0.6;
+        var bx = p.x - p.nx * p.th * 0.3;
+        var by = p.y - p.ny * p.th * 0.3;
+        var kx = bx - p.nx * p.th * 0.75 + p.tx * p.th * (reach + paddle);
+        var ky = by - p.ny * p.th * 0.75 + p.ty * p.th * (reach + paddle);
+        var fx = kx - p.nx * p.th * 0.55 - p.tx * p.th * 0.6;
+        var fy = ky - p.ny * p.th * 0.55 - p.ty * p.th * 0.6;
+        ctx.lineWidth = p.th * 0.32;
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(kx, ky);
+        ctx.lineTo(fx, fy);
+        ctx.stroke();
+        ctx.lineWidth = Math.max(0.8, p.th * 0.12);
+        ctx.beginPath();
+        for (var c = -1; c <= 1; c++) {
+          ctx.moveTo(fx, fy);
+          ctx.lineTo(fx + p.tx * p.th * 0.35 * (1 + c * 0.2) - p.nx * p.th * 0.25 * c, fy + p.ty * p.th * 0.35 * (1 + c * 0.2) - p.ny * p.th * 0.25 * c);
+        }
+        ctx.stroke();
+      });
+    });
+
+    // The head, drawn facing along the flight with its top up.
+    var hd = pts[0];
+    var k = thick / 10;
+    ctx.save();
+    ctx.translate(hd.x, hd.y);
+    ctx.rotate(Math.atan2(hd.ty, hd.tx));
+    if (g.dir < 0) ctx.scale(1, -1);
+    ctx.beginPath();
+    ctx.moveTo(-2 * k, -5 * k);
+    ctx.quadraticCurveTo(4 * k, -8 * k, 10 * k, -6.5 * k);
+    ctx.quadraticCurveTo(16 * k, -6 * k, 22 * k, -3 * k);
+    ctx.quadraticCurveTo(25 * k, -2 * k, 24.5 * k, 0);
+    ctx.lineTo(14 * k, 0.6 * k);
+    ctx.lineTo(21 * k, 3 * k);
+    ctx.quadraticCurveTo(14 * k, 6.5 * k, 4 * k, 5.5 * k);
+    ctx.lineTo(-2 * k, 5 * k);
+    ctx.closePath();
+    // A mane of flame-like tufts behind the head.
+    for (var m = 0; m < 3; m++) {
+      var flick = Math.sin(age * 4 + m) * 1.2 * k;
+      ctx.moveTo((-1 - m * 6) * k, -4.5 * k);
+      ctx.lineTo((-9 - m * 6) * k, (-11 + m * 1.5) * k + flick);
+      ctx.lineTo((-5 - m * 6) * k, -4.5 * k);
+    }
+    ctx.fill();
+    ctx.lineWidth = 1.6 * k;
+    ctx.beginPath();
+    ctx.moveTo(6 * k, -7 * k);
+    ctx.quadraticCurveTo(-2 * k, -14 * k, -12 * k, -15 * k);
+    ctx.moveTo(-3 * k, -12.5 * k);
+    ctx.lineTo(-6 * k, -18 * k);
+    ctx.moveTo(9 * k, -6.5 * k);
+    ctx.quadraticCurveTo(2 * k, -11 * k, -6 * k, -11.5 * k);
+    ctx.stroke();
+    // Long whiskers trailing back from the nose, waving as it flies.
+    var wv = Math.sin(age * 2.2) * 3 * k;
+    var wv2 = Math.sin(age * 2.2 - 1) * 4 * k;
+    ctx.lineWidth = Math.max(0.8, 0.9 * k);
+    ctx.beginPath();
+    ctx.moveTo(23 * k, -1 * k);
+    ctx.bezierCurveTo(16 * k, -11 * k + wv, 2 * k, -3 * k + wv, -18 * k, -9 * k + wv2);
+    ctx.moveTo(21 * k, 2.5 * k);
+    ctx.bezierCurveTo(13 * k, 10 * k + wv, 0, 5 * k - wv, -16 * k, 11 * k + wv2);
+    ctx.stroke();
+    ctx.restore();
+  };
+
   // Where the dragonfly sits on button k: on top of the circle, legs touching it.
   ContactShore.prototype.perchAt = function (k) {
     var b = this.buttons[k].getBoundingClientRect();
@@ -522,6 +704,7 @@
       if (m.x > w + 10) m.x = -10;
     });
     this.updateDragonfly(dt);
+    this.updateDragon();
   };
 
   ContactShore.prototype.draw = function () {
@@ -534,6 +717,7 @@
       this.drawStars(ctx);
       this.drawDipper(ctx);
     }
+    if (this.dragon) this.drawDragon(ctx);
     this.drawLayer(ctx);
     if (n < 1) this.drawMotes(ctx);
     if (n > 0) this.drawFireflies(ctx);
