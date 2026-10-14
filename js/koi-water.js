@@ -214,7 +214,8 @@
     "  float cloud = smoothstep(0.47, 0.72, puff);",
     "  cloud *= mix(0.5, 1.0, smoothstep(0.6, 1.4, length(mid)));",
     "  vec3 cloudCol = mix(vec3(0.97, 0.98, 1.0), vec3(0.42, 0.5, 0.66), uNight);",
-    "  col = mix(col, cloudCol, cloud * mix(0.42, 0.16, uNight));",
+    "  float mist = cloud * mix(0.42, 0.16, uNight);",
+    "  col = mix(col, cloudCol, mist);",
     // Sun glints: tiny ripple facets that tip toward the sun for an instant.
     // A few random points per patch of water, each flashing on its own beat.
     "  vec2 gp = p / 7.0;",
@@ -229,10 +230,11 @@
     "  col += vec3(1.0, 0.97, 0.9) * spark * gate * mix(2.2, 1.8, uNight);",
 
     // Lily pads float on top. Water hugs their edges in a thin bright line.
+    // A pad under a cloud takes on the same misty haze as the water around it.
     "  vec4 pad = texture2D(uPads, uv);",
     "  float hug = clamp(soft(uPads, p, 2.0) - pad.a, 0.0, 1.0);",
     "  col += vec3(0.7, 0.85, 0.98) * hug * 0.22;",
-    "  col = col * (1.0 - pad.a) + pad.rgb;",
+    "  col = col * (1.0 - pad.a) + mix(pad.rgb, cloudCol * pad.a, mist);",
 
     "  vec2 q = uv - vec2(0.5, 0.58);",
     // A touch of warm sunlight over everything by day.
