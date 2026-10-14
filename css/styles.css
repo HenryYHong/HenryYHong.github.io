@@ -12295,7 +12295,7 @@ header.masthead .masthead-subheading {
 
 /* ── Contact section ────────────────────────────────────────────── */
 section#contact {
-  background: linear-gradient(180deg, #2a5f43 0%, #1d4a33 55%, #143826 100%);
+  background: linear-gradient(180deg, #3d73a0 0%, #5a8fb4 55%, #9cc2da 100%);
   position: relative;
   overflow: hidden;
   flex-grow: 1;
@@ -12317,7 +12317,7 @@ section#contact .contact-card {
   pointer-events: auto;
 }
 [data-theme="dark"] section#contact {
-  background: linear-gradient(180deg, #0b1d14 0%, #0d2419 55%, #10291c 100%);
+  background: linear-gradient(180deg, #0a1730 0%, #132f57 60%, #1f4777 100%);
 }
 section#contact .section-heading {
   color: #fff;

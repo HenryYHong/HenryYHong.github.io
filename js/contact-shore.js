@@ -2,8 +2,8 @@
   "use strict";
 
   // The pond's shore behind the contact section: reeds and cattails swaying in
-  // the breeze, fireflies at night and, by day, a dragonfly now and then and a
-  // little pollen drifting in the light.
+  // the breeze against the sky the pond reflects. Fireflies and a few stars at
+  // night; by day, a dragonfly now and then and a little pollen in the light.
 
   var TAU = Math.PI * 2;
 
@@ -148,6 +148,10 @@
         on: rand(0.8, 1.4),
       });
     }
+    this.stars = [];
+    for (var s = 0; s < Math.round(w / 14); s++) {
+      this.stars.push({ x: rnd() * w, y: rnd() * h * 0.6, r: 0.4 + rnd() * 0.7, a: 0.25 + rnd() * 0.5, phase: rnd() * TAU });
+    }
     this.motes = [];
     for (var j = 0; j < Math.round(clamp(w / 120, 4, 12)); j++) {
       this.motes.push({ x: rand(0, w), y: rand(0, h), vx: rand(-4, 4), vy: rand(-6, -2), phase: rand(0, TAU), r: rand(0.8, 1.6) });
@@ -179,8 +183,24 @@
         ctx.closePath();
       }, this);
       ctx.fill();
-      if (layer === 1) this.drawCattails(ctx);
+      if (layer === 1) {
+        // Solid ground under the front row, so the reeds meet the footer.
+        ctx.fillRect(0, h - 3, this.w, 3);
+        this.drawCattails(ctx);
+      }
     }, this);
+  };
+
+  ContactShore.prototype.drawStars = function (ctx) {
+    var t = this.time;
+    ctx.fillStyle = "#f2f6ff";
+    this.stars.forEach(function (s) {
+      ctx.globalAlpha = this.night * s.a * (this.still ? 0.8 : 0.65 + 0.35 * Math.sin(t * 1.1 + s.phase));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, TAU);
+      ctx.fill();
+    }, this);
+    ctx.globalAlpha = 1;
   };
 
   ContactShore.prototype.drawCattails = function (ctx) {
@@ -294,33 +314,95 @@
     }
   };
 
+  // A blue dasher seen from the side: big round eyes, a stout thorax, a long
+  // segmented abdomen, and four glassy wings with a dark spot near each tip,
+  // beating too fast to see clearly.
   ContactShore.prototype.drawDragonfly = function (ctx) {
     var d = this.dragonfly;
     var t = this.time;
-    // A little bob while it hovers.
-    var x = d.x + (d.wait > 0 ? Math.sin(t * 5) * 1.2 : 0);
-    var y = d.y + (d.wait > 0 ? Math.sin(t * 7.3) * 1.5 : 0);
+    var hovering = d.wait > 0;
+    var x = d.x + (hovering ? Math.sin(t * 5) * 1.2 : 0);
+    var y = d.y + (hovering ? Math.sin(t * 7.3) * 1.5 : 0);
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(d.face, 1);
+    ctx.scale(d.face * 1.25, 1.25);
+    ctx.rotate(hovering ? 0 : -0.08);
     ctx.globalAlpha = 1 - this.night;
-    var flick = 0.55 + 0.45 * Math.abs(Math.sin(t * 60));
-    ctx.fillStyle = "rgba(225, 242, 255, " + (0.35 * flick).toFixed(3) + ")";
+
+    function wing(angle, length, alpha) {
+      ctx.save();
+      ctx.rotate(angle);
+      ctx.fillStyle = "rgba(232, 244, 255, " + alpha + ")";
+      ctx.beginPath();
+      ctx.ellipse(0, -length / 2, 1.5, length / 2, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = "rgba(40, 48, 58, " + Math.min(0.7, alpha * 2.2) + ")";
+      ctx.fillRect(-0.7, -length + 2, 1.4, 1.8);
+      ctx.restore();
+    }
+    // Fore and hind wings beat out of step; faint copies make the blur.
+    var beat = Math.sin(t * 48);
+    for (var k = -1; k <= 1; k++) {
+      var b = beat + k * 0.6;
+      var alpha = k === 0 ? 0.42 : 0.16;
+      ctx.save();
+      ctx.translate(1.2, -2.2);
+      wing(-0.35 + 0.5 * b, 15, alpha);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(-1.4, -2.2);
+      wing(-0.75 - 0.5 * b, 14, alpha);
+      ctx.restore();
+    }
+
+    // Abdomen: long and thin, a little curved, darker toward the tip.
+    var abd = ctx.createLinearGradient(-3, 0, -27, 0);
+    abd.addColorStop(0, "#5aa9cc");
+    abd.addColorStop(0.75, "#3f8bb0");
+    abd.addColorStop(1, "#1b3b4c");
+    ctx.fillStyle = abd;
     ctx.beginPath();
-    ctx.ellipse(1, -4.5, 8, 2.2, -0.35, 0, TAU);
-    ctx.ellipse(-3, -4, 7, 2, -0.6, 0, TAU);
+    ctx.moveTo(-2.5, -1.3);
+    ctx.quadraticCurveTo(-15, -1.2, -27, 0.9);
+    ctx.lineTo(-27, 2.0);
+    ctx.quadraticCurveTo(-15, 1.6, -2.5, 1.4);
+    ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = "#1d6f86";
+    ctx.strokeStyle = "rgba(15, 35, 48, 0.35)";
+    ctx.lineWidth = 0.4;
     ctx.beginPath();
-    ctx.ellipse(-9, 0.6, 9, 1.1, 0.06, 0, TAU);
+    for (var seg = -6; seg > -26; seg -= 2.6) {
+      var off = (seg + 2.5) * (seg + 2.5) * 0.0016;
+      ctx.moveTo(seg, -1.2 + off);
+      ctx.lineTo(seg, 1.4 + off);
+    }
+    ctx.stroke();
+
+    // Legs tucked under the thorax.
+    ctx.strokeStyle = "rgba(20, 30, 36, 0.8)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (var l = 0; l < 3; l++) {
+      ctx.moveTo(-1 + l * 1.4, 2);
+      ctx.lineTo(-2 + l * 1.6, 4.4);
+    }
+    ctx.stroke();
+
+    // Thorax, then the head with its big eyes.
+    var tho = ctx.createLinearGradient(0, -3, 0, 3);
+    tho.addColorStop(0, "#4f9a8a");
+    tho.addColorStop(1, "#24524b");
+    ctx.fillStyle = tho;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 4, 3, -0.1, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = "#2a8fa8";
+    ctx.fillStyle = "#2d7f95";
     ctx.beginPath();
-    ctx.ellipse(1.5, 0, 3.2, 2, 0, 0, TAU);
+    ctx.arc(4.6, -0.6, 2.7, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = "#24576a";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
     ctx.beginPath();
-    ctx.arc(5.2, -0.3, 1.9, 0, TAU);
+    ctx.arc(5.3, -1.6, 0.8, 0, TAU);
     ctx.fill();
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -359,6 +441,7 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    if (this.night > 0) this.drawStars(ctx);
     if (this.night < 1) this.drawMotes(ctx);
     this.drawReeds(ctx);
     if (this.dragonfly) this.drawDragonfly(ctx);
