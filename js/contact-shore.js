@@ -457,7 +457,8 @@
     lc.lineCap = "round";
     lc.lineJoin = "round";
 
-    // Body, then the frill along its back.
+    // Body, then the fins along its back, big and small in turn as in Qing
+    // dynasty paintings.
     lc.beginPath();
     for (i = 0; i <= n; i++) lc[i ? "lineTo" : "moveTo"](pts[i].x + (pts[i].nx * pts[i].th) / 2, pts[i].y + (pts[i].ny * pts[i].th) / 2);
     for (i = n; i >= 0; i--) lc.lineTo(pts[i].x - (pts[i].nx * pts[i].th) / 2, pts[i].y - (pts[i].ny * pts[i].th) / 2);
@@ -467,7 +468,7 @@
     for (i = 3; i < n - 2; i += 2) {
       var q = pts[i];
       var top = q.th / 2 - 0.5;
-      var tall = Math.max(2, q.th * 0.6);
+      var tall = Math.max(1.2, q.th * ((i - 3) % 4 ? 0.22 : 0.42));
       var bx = q.x + q.nx * top;
       var by = q.y + q.ny * top;
       lc.moveTo(bx + q.tx * step * 0.8, by + q.ty * step * 0.8);
