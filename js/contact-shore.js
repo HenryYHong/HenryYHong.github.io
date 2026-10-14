@@ -334,22 +334,22 @@
     this.dragonfly = { x: fromLeft ? -40 : w + 40, y: h * rand(0.3, 0.6), stops: stops, wait: 0, perched: null, face: fromLeft ? 1 : -1 };
   };
 
-  // Now and then a dragon glides across the sky, far off behind the hills. Its
-  // head rolls gently up and down as it flies, and the long body follows the
-  // same path, so it ripples like a ribbon.
+  // Now and then a dragon glides across the sky, small and far off behind the
+  // hills. Its head rolls gently up and down as it flies, and the long body
+  // follows the same path, so it ripples like a ribbon.
   ContactShore.prototype.spawnDragon = function () {
     var w = this.w;
     var h = this.h;
     var u = h / 254;
     var dir = Math.random() < 0.5 ? 1 : -1;
-    var len = Math.min(360, w * 0.6) * u;
+    var len = Math.min(120, w * 0.24) * u;
     this.dragon = {
       dir: dir,
       len: len,
-      speed: (w < 700 ? 55 : 80) * u,
+      speed: (w < 700 ? 24 : 32) * u,
       x0: dir > 0 ? -40 : w + 40,
-      y: h * rand(0.24, 0.34),
-      amp: rand(18, 24) * u,
+      y: h * rand(0.16, 0.3),
+      amp: rand(6, 9) * u,
       wave: rand(1.9, 2.3),
       phase: rand(0, TAU),
       born: this.time,
@@ -590,10 +590,11 @@
     lc.globalCompositeOperation = "source-over";
     lc.restore();
 
-    // Fade the whole silhouette onto the sky: blue-grey by day, dark at night.
+    // Fade the whole silhouette onto the sky, hazy with distance: blue-grey by
+    // day, dark at night.
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 0.5 + 0.35 * this.night;
+    ctx.globalAlpha = 0.32 + 0.28 * this.night;
     ctx.globalCompositeOperation = "source-over";
     ctx.drawImage(this.dragonLayer, 0, 0);
     ctx.restore();
