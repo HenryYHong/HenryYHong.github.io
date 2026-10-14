@@ -672,10 +672,11 @@
     var H = F.base - F.top;
     var tries = [];
     var t = 0;
-    var fails = Math.random() < 0.5 ? 1 : 2;
+    // It falls short two or three times, each leap a little higher.
+    var fails = Math.random() < 0.5 ? 2 : 3;
     for (var k = 0; k <= fails; k++) {
       var last = k === fails;
-      var height = H * (last ? 1 : k === fails - 1 ? rand(0.42, 0.6) : rand(0.2, 0.32));
+      var height = H * (last ? 1 : (0.2 + (0.42 * k) / (fails - 1)) * rand(0.9, 1.1));
       var dur = 2 * Math.sqrt((2 * height) / (LEAP_G * u));
       tries.push({ t0: t, height: height, dur: dur, drift: (last ? -10 : rand(-4, 4)) * u, last: last });
       t += dur + rand(0.7, 1.3);
