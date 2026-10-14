@@ -652,7 +652,7 @@
     var now = this.time || 0;
 
     // With the water on, food floats on the surface over the moon and clouds
-    // reflected in it, so it gets its own layer, along with birds and planes
+    // reflected in it, so it gets its own layer, along with birds
     // reflected as they pass over. That layer is only redrawn and sent to the
     // shader while something is on it, plus once more to clear it.
     this.foodDirty = false;
@@ -749,8 +749,8 @@
     if (callback) callback();
   };
 
-  // By day, now and then something crosses the sky and shows in the water:
-  // a few swallows, a heron, or now and then a plane with its contrail.
+  // By day, now and then birds cross the sky and show in the water: a few
+  // swallows, or a heron.
   KoiPond.prototype.updateFlyover = function () {
     var now = this.time / 1000;
     var f = this.flyover;
@@ -767,9 +767,8 @@
     if (now < this.nextFlyover) return;
     this.nextFlyover = now + rand(35, 70);
 
-    var roll = Math.random();
-    var kind = roll < 0.2 ? "plane" : roll < 0.5 ? "heron" : "swallows";
-    var speed = kind === "plane" ? rand(60, 80) : kind === "heron" ? rand(85, 105) : rand(170, 210);
+    var kind = Math.random() < 0.4 ? "heron" : "swallows";
+    var speed = kind === "heron" ? rand(85, 105) : rand(170, 210);
     var water = this.h - this.top;
     var fromLeft = Math.random() < 0.5;
     var x0 = fromLeft ? -90 : this.w + 90;
@@ -795,8 +794,7 @@
       speed: speed,
       born: now,
       age: 0,
-      // A plane's contrail lingers after it has gone.
-      dur: (len + (kind === "plane" ? 260 : 120)) / speed + (kind === "plane" ? 6 : 0),
+      dur: (len + 120) / speed,
     };
   };
 
@@ -807,50 +805,6 @@
     var hy = f.y0 + f.dirY * f.speed * t;
     var ang = Math.atan2(f.dirY, f.dirX);
     ctx.save();
-    if (f.kind === "plane") {
-      // The contrail: two white lines behind the engines that spread and fade.
-      var trail = Math.min(f.speed * t, 420);
-      for (var side = -1; side <= 1; side += 2) {
-        var ox = -f.dirY * side * 2.2;
-        var oy = f.dirX * side * 2.2;
-        var tx = hx - f.dirX * trail;
-        var ty = hy - f.dirY * trail;
-        var g = ctx.createLinearGradient(hx, hy, tx, ty);
-        g.addColorStop(0, "rgba(255, 255, 255, 0)");
-        g.addColorStop(0.06, "rgba(255, 255, 255, 0.4)");
-        g.addColorStop(1, "rgba(255, 255, 255, 0)");
-        ctx.strokeStyle = g;
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(hx - f.dirX * 6 + ox, hy - f.dirY * 6 + oy);
-        ctx.lineTo(tx + ox * 2, ty + oy * 2);
-        ctx.stroke();
-      }
-      ctx.translate(hx, hy);
-      ctx.rotate(ang);
-      ctx.fillStyle = "rgba(24, 40, 58, 0.45)";
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 8, 1.3, 0, 0, TAU);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(2, 0);
-      ctx.lineTo(-2.5, -8);
-      ctx.lineTo(-4, -8);
-      ctx.lineTo(-2, 0);
-      ctx.lineTo(-4, 8);
-      ctx.lineTo(-2.5, 8);
-      ctx.closePath();
-      ctx.moveTo(-6, 0);
-      ctx.lineTo(-8.5, -3);
-      ctx.lineTo(-9.3, -3);
-      ctx.lineTo(-8, 0);
-      ctx.lineTo(-9.3, 3);
-      ctx.lineTo(-8.5, 3);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-      return;
-    }
     // Birds seen from below in the reflection: dark shapes whose wings
     // narrow and widen as they flap.
     ctx.fillStyle = "rgba(18, 38, 56, 0.5)";

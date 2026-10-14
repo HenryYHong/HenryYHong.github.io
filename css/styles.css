@@ -11121,54 +11121,20 @@ header.masthead.is-particles-interactive .masthead-content {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #particles-js,
-  #particles-contact {
+  #particles-js {
     display: none;
   }
 }
 
-#particles-contact {
+/* The pond's shore behind the contact section, drawn by js/contact-shore.js. */
+#contact-shore {
   position: absolute;
   inset: 0;
-  width: 100% !important;
-  height: 100% !important;
-  pointer-events: all;
-  opacity: 0.7;
-  z-index: 0;
-}
-
-#particles-contact canvas.particles-js-canvas-el {
+  width: 100%;
+  height: 100%;
   display: block;
-  position: absolute;
-  inset: 0;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-.particles-hint {
-  position: absolute;
-  right: 1rem;
-  bottom: 0.85rem;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.6);
+  z-index: 0;
   pointer-events: none;
-  user-select: none;
-}
-
-.particles-hint i {
-  font-size: 0.8rem;
-}
-
-@media (max-width: 575px) {
-  .particles-hint {
-    font-size: 0.65rem;
-    right: 0.75rem;
-  }
 }
 
 /* Dropdown Button */
@@ -12329,7 +12295,7 @@ header.masthead .masthead-subheading {
 
 /* ── Contact section ────────────────────────────────────────────── */
 section#contact {
-  background: linear-gradient(180deg, #16181c 0%, #0b0c0e 100%);
+  background: linear-gradient(180deg, #2a5f43 0%, #1d4a33 55%, #143826 100%);
   position: relative;
   overflow: hidden;
   flex-grow: 1;
@@ -12347,9 +12313,11 @@ section#contact .container {
   pointer-events: none;
 }
 section#contact .section-heading,
-section#contact .contact-card,
-section#contact .particles-hint {
+section#contact .contact-card {
   pointer-events: auto;
+}
+[data-theme="dark"] section#contact {
+  background: linear-gradient(180deg, #0b1d14 0%, #0d2419 55%, #10291c 100%);
 }
 section#contact .section-heading {
   color: #fff;
