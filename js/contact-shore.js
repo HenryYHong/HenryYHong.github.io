@@ -2,8 +2,9 @@
   "use strict";
 
   // The far side of the koi pond behind the contact section: the sky the pond
-  // reflects over soft layers of misty hills. Fireflies and a few stars at
-  // night; by day, a dragonfly now and then and a little pollen in the light.
+  // reflects over soft layers of misty hills. At night, stars with the Big
+  // Dipper among them, and fireflies; by day, a little pollen in the light and
+  // now and then a dragonfly, which sometimes lands on one of the buttons.
 
   var TAU = Math.PI * 2;
 
@@ -26,6 +27,40 @@
   function clamp(v, a, b) {
     return v < a ? a : v > b ? b : v;
   }
+
+  // The Big Dipper's stars, [right ascension in hours, declination in degrees,
+  // magnitude]: Dubhe, Merak, Phecda, Megrez, Alioth, Mizar, Alkaid.
+  var DIPPER_STARS = [
+    [11.062, 61.75, 1.8],
+    [11.031, 56.38, 2.4],
+    [11.897, 53.69, 2.4],
+    [12.257, 57.03, 3.3],
+    [12.9, 55.96, 1.8],
+    [13.399, 54.93, 2.2],
+    [13.792, 49.31, 1.9],
+  ];
+  // Flattened around its middle as it looks in the sky, east to the left,
+  // longest side 1: [x, y, brightness].
+  var DIPPER = (function () {
+    var ra0 = 0;
+    var dec0 = 0;
+    DIPPER_STARS.forEach(function (s) {
+      ra0 += s[0] / 7;
+      dec0 += s[1] / 7;
+    });
+    var k = Math.cos((dec0 * Math.PI) / 180) * 15;
+    var pts = DIPPER_STARS.map(function (s) {
+      return [-(s[0] - ra0) * k, -(s[1] - dec0), 0.75 + (2.6 - s[2]) * 0.22];
+    });
+    var xs = pts.map(function (q) { return q[0]; });
+    var ys = pts.map(function (q) { return q[1]; });
+    var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2;
+    var cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
+    var span = Math.max(Math.max.apply(null, xs) - Math.min.apply(null, xs), Math.max.apply(null, ys) - Math.min.apply(null, ys));
+    return pts.map(function (q) {
+      return [(q[0] - cx) / span, (q[1] - cy) / span, q[2]];
+    });
+  })();
 
   function css(c, alpha) {
     var a = (c.length > 3 ? c[3] : 1) * (alpha == null ? 1 : alpha);
@@ -61,10 +96,15 @@
     return document.documentElement.getAttribute("data-theme") === "dark";
   }
 
-  function ContactShore(section, canvas) {
+  function ContactShore(section, canvas, front) {
     this.section = section;
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
+    // The dragonfly flies on its own layer above the heading and buttons.
+    this.front = front;
+    this.fctx = front.getContext("2d");
+    this.buttons = Array.prototype.slice.call(section.querySelectorAll(".contact-socials .btn-social"));
+    this.starGlow = makeGlow("235, 242, 255");
     this.fireGlow = makeGlow("214, 255, 120");
     this.sunGlow = makeGlow("255, 246, 214");
     this.layers = {};
@@ -94,8 +134,8 @@
     this.w = w;
     this.h = h;
     this.dpr = dpr;
-    this.canvas.width = Math.round(w * dpr);
-    this.canvas.height = Math.round(h * dpr);
+    this.canvas.width = this.front.width = Math.round(w * dpr);
+    this.canvas.height = this.front.height = Math.round(h * dpr);
     this.layout();
     this.paintLayers();
     if (!this.running) this.draw();
@@ -130,6 +170,15 @@
         on: rand(0.8, 1.4),
       });
     }
+    // The Big Dipper sits in open sky: left of the heading on wide screens,
+    // in the top corner on phones.
+    var wide = w >= 700;
+    var size = wide ? Math.min(170, w * 0.12) : w * 0.24;
+    var dx = w * (wide ? 0.2 : 0.15);
+    var dy = h * (wide ? 0.3 : 0.13);
+    this.dipper = DIPPER.map(function (q, k) {
+      return { x: dx + q[0] * size, y: dy + q[1] * size, b: q[2], phase: k * 1.7 };
+    });
     this.stars = [];
     for (i = 0; i < Math.round(w / 14); i++) {
       this.stars.push({ x: rnd() * w, y: rnd() * h * 0.6, r: 0.4 + rnd() * 0.7, a: 0.25 + rnd() * 0.5, phase: rnd() * TAU });
@@ -202,6 +251,21 @@
     ctx.restore();
   };
 
+  ContactShore.prototype.drawDipper = function (ctx) {
+    var t = this.time;
+    this.dipper.forEach(function (s) {
+      var a = this.night * s.b * (this.still ? 0.9 : 0.85 + 0.15 * Math.sin(t * 1.3 + s.phase));
+      ctx.globalAlpha = a * 0.6;
+      ctx.drawImage(this.starGlow, s.x - 9, s.y - 9, 18, 18);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = "#f6f9ff";
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 1.5, 0, TAU);
+      ctx.fill();
+    }, this);
+    ctx.globalAlpha = 1;
+  };
+
   ContactShore.prototype.drawStars = function (ctx) {
     var t = this.time;
     ctx.fillStyle = "#f2f6ff";
@@ -256,8 +320,25 @@
       var side = Math.random() < 0.5 ? rand(0.05, 0.3) : rand(0.7, 0.95);
       stops.push({ x: w * side, y: h * rand(0.35, 0.75) });
     }
+    // Often it stops to rest on one of the buttons.
+    if (this.buttons.length && Math.random() < 0.6) {
+      stops.splice(1, 0, { perch: Math.floor(Math.random() * this.buttons.length) });
+    }
     stops.push({ x: fromLeft ? w + 40 : -40, y: h * rand(0.2, 0.6) });
-    this.dragonfly = { x: fromLeft ? -40 : w + 40, y: h * rand(0.3, 0.6), stops: stops, wait: 0, face: fromLeft ? 1 : -1 };
+    this.dragonfly = { x: fromLeft ? -40 : w + 40, y: h * rand(0.3, 0.6), stops: stops, wait: 0, perched: null, face: fromLeft ? 1 : -1 };
+  };
+
+  // Where the dragonfly sits on button k: on top of the circle, legs touching it.
+  ContactShore.prototype.perchAt = function (k) {
+    var b = this.buttons[k].getBoundingClientRect();
+    var s = this.section.getBoundingClientRect();
+    return { x: b.left - s.left + b.width / 2 + 2, y: b.top - s.top - 3.4 };
+  };
+
+  // Touching the button it's resting on sends it off again.
+  ContactShore.prototype.startle = function (k) {
+    var d = this.dragonfly;
+    if (d && d.perched === k) d.wait = 0;
   };
 
   ContactShore.prototype.updateDragonfly = function (dt) {
@@ -268,9 +349,19 @@
     }
     if (d.wait > 0) {
       d.wait -= dt;
-      return;
+      if (d.perched !== null) {
+        var seat = this.perchAt(d.perched);
+        d.x = seat.x;
+        d.y = seat.y;
+      }
+      if (d.perched === null || d.wait > 0) return;
+    }
+    if (d.perched !== null) {
+      d.perched = null;
+      d.stops.shift();
     }
     var target = d.stops[0];
+    if (target.perch != null) target = this.perchAt(target.perch);
     var dx = target.x - d.x;
     var dy = target.y - d.y;
     var dist = Math.hypot(dx, dy);
@@ -279,6 +370,12 @@
     if (dist <= step) {
       d.x = target.x;
       d.y = target.y;
+      if (d.stops[0].perch != null) {
+        // Landed: it stays on the stop until it takes off again.
+        d.perched = d.stops[0].perch;
+        d.wait = rand(2.5, 5);
+        return;
+      }
       d.stops.shift();
       if (!d.stops.length) {
         this.dragonfly = null;
@@ -298,13 +395,14 @@
   ContactShore.prototype.drawDragonfly = function (ctx) {
     var d = this.dragonfly;
     var t = this.time;
-    var hovering = d.wait > 0;
+    var perched = d.perched !== null;
+    var hovering = d.wait > 0 && !perched;
     var x = d.x + (hovering ? Math.sin(t * 5) * 1.2 : 0);
     var y = d.y + (hovering ? Math.sin(t * 7.3) * 1.5 : 0);
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(d.face * 0.85, 0.85);
-    ctx.rotate(hovering ? 0 : -0.08);
+    ctx.rotate(hovering || perched ? 0 : -0.08);
     ctx.globalAlpha = 1 - this.night;
 
     function wing(angle, length, alpha) {
@@ -319,18 +417,30 @@
       ctx.restore();
     }
     // Fore and hind wings beat out of step; faint copies make the blur.
-    var beat = Math.sin(t * 48);
-    for (var k = -1; k <= 1; k++) {
-      var b = beat + k * 0.6;
-      var alpha = k === 0 ? 0.42 : 0.16;
+    // Resting, the wings are still, held back and a little raised.
+    if (perched) {
       ctx.save();
       ctx.translate(1.2, -2.2);
-      wing(-0.35 + 0.5 * b, 15, alpha);
+      wing(-1.2, 15, 0.4);
       ctx.restore();
       ctx.save();
       ctx.translate(-1.4, -2.2);
-      wing(-0.75 - 0.5 * b, 14, alpha);
+      wing(-1.4, 14, 0.4);
       ctx.restore();
+    } else {
+      var beat = Math.sin(t * 48);
+      for (var k = -1; k <= 1; k++) {
+        var b = beat + k * 0.6;
+        var alpha = k === 0 ? 0.42 : 0.16;
+        ctx.save();
+        ctx.translate(1.2, -2.2);
+        wing(-0.35 + 0.5 * b, 15, alpha);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(-1.4, -2.2);
+        wing(-0.75 - 0.5 * b, 14, alpha);
+        ctx.restore();
+      }
     }
 
     // Abdomen: long and thin, a little curved, darker toward the tip.
@@ -420,11 +530,21 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    if (n > 0) this.drawStars(ctx);
+    if (n > 0) {
+      this.drawStars(ctx);
+      this.drawDipper(ctx);
+    }
     this.drawLayer(ctx);
     if (n < 1) this.drawMotes(ctx);
-    if (this.dragonfly) this.drawDragonfly(ctx);
     if (n > 0) this.drawFireflies(ctx);
+
+    var fctx = this.fctx;
+    fctx.setTransform(1, 0, 0, 1, 0, 0);
+    fctx.clearRect(0, 0, this.front.width, this.front.height);
+    if (this.dragonfly) {
+      fctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      this.drawDragonfly(fctx);
+    }
   };
 
   ContactShore.prototype.frame = function (now) {
@@ -472,6 +592,11 @@
       this.visible = true;
     }
     document.addEventListener("visibilitychange", function () { self.refresh(); });
+    this.buttons.forEach(function (button, k) {
+      ["pointerenter", "pointerdown", "focus"].forEach(function (type) {
+        button.addEventListener(type, function () { self.startle(k); });
+      });
+    });
     // A still page redraws when the theme changes.
     new MutationObserver(function () {
       if (self.running) return;
@@ -483,6 +608,7 @@
 
   var section = document.getElementById("contact");
   var canvas = document.getElementById("contact-shore");
-  if (!section || !canvas || !canvas.getContext) return;
-  new ContactShore(section, canvas).start();
+  var front = document.getElementById("contact-shore-front");
+  if (!section || !canvas || !front || !canvas.getContext) return;
+  new ContactShore(section, canvas, front).start();
 })();

@@ -11137,6 +11137,17 @@ header.masthead.is-particles-interactive .masthead-content {
   pointer-events: none;
 }
 
+/* The dragonfly flies above the heading and can land on the buttons. */
+#contact-shore-front {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 3;
+  pointer-events: none;
+}
+
 /* Dropdown Button */
 .dropbtn {
   display: flex;
