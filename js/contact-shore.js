@@ -122,6 +122,9 @@
     this.nextDragonfly = rand(6, 12);
     this.dragon = null;
     this.nextDragon = rand(4, 7);
+    // The dragon is drawn solid here first, then faded onto the sky in one
+    // piece, so where its parts overlap doesn't show darker.
+    this.dragonLayer = document.createElement("canvas");
     this.visible = false;
     this.running = false;
     this.raf = 0;
@@ -137,8 +140,8 @@
     this.w = w;
     this.h = h;
     this.dpr = dpr;
-    this.canvas.width = this.front.width = Math.round(w * dpr);
-    this.canvas.height = this.front.height = Math.round(h * dpr);
+    this.canvas.width = this.front.width = this.dragonLayer.width = Math.round(w * dpr);
+    this.canvas.height = this.front.height = this.dragonLayer.height = Math.round(h * dpr);
     this.layout();
     this.paintLayers();
     if (!this.running) this.draw();
@@ -339,7 +342,7 @@
     var h = this.h;
     var u = h / 254;
     var dir = Math.random() < 0.5 ? 1 : -1;
-    var len = Math.min(260, w * 0.45) * u;
+    var len = Math.min(360, w * 0.6) * u;
     this.dragon = {
       dir: dir,
       len: len,
@@ -373,140 +376,226 @@
     }
   };
 
-  // The dragon as one soft silhouette: body and spines, legs with claws, a
-  // horned head with long whiskers, and a flame-like tuft at the tail.
+  // The dragon as one soft silhouette: a long body with a flame-like frill
+  // along its back, four legs with tufted elbows and spread talons, a horned
+  // head with a streaming mane, beard and long whiskers, and a fan of flame at
+  // the tail.
   ContactShore.prototype.drawDragon = function (ctx) {
     var g = this.dragon;
     var age = this.time - g.born;
-    var n = 48;
+    var n = 64;
     var step = g.len / n;
-    var thick = g.len * 0.05;
+    var T = g.len * 0.045; // body thickness at the neck
     var pts = [];
     var i;
     for (i = 0; i <= n; i++) pts.push(dragonAt(g, age - (i * step) / g.speed));
-    // Direction toward the head, the side facing up, and the body's thickness.
     for (i = 0; i <= n; i++) {
       var a = pts[Math.max(i - 1, 0)];
       var b = pts[Math.min(i + 1, n)];
       var tx = a.x - b.x;
       var ty = a.y - b.y;
       var tl = Math.hypot(tx, ty) || 1;
-      pts[i].tx = tx / tl;
-      pts[i].ty = ty / tl;
-      pts[i].nx = g.dir * pts[i].ty;
-      pts[i].ny = -g.dir * pts[i].tx;
-      var f = i / n;
-      pts[i].th = f < 0.08 ? thick * (0.75 + (0.25 * f) / 0.08) : thick * (1 - 0.88 * Math.pow((f - 0.08) / 0.92, 1.1));
-    }
-    var color = "rgba(" + Math.round(22 - 16 * this.night) + ", " + Math.round(42 - 30 * this.night) + ", " + Math.round(64 - 36 * this.night) + ", " + (0.5 + 0.35 * this.night).toFixed(3) + ")";
-    ctx.fillStyle = color;
-    ctx.strokeStyle = color;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
-    ctx.beginPath();
-    for (i = 0; i <= n; i++) {
       var p = pts[i];
-      ctx[i ? "lineTo" : "moveTo"](p.x + (p.nx * p.th) / 2, p.y + (p.ny * p.th) / 2);
+      p.tx = tx / tl; // toward the head
+      p.ty = ty / tl;
+      p.nx = g.dir * p.ty; // toward its back
+      p.ny = -g.dir * p.tx;
+      var f = i / n;
+      // Fullest through the chest, tapering to a thin tail.
+      p.th = f < 0.25 ? T * (0.95 + 0.25 * Math.sin((f / 0.25) * Math.PI * 0.5)) : T * 1.2 * (1 - 0.8 * Math.pow((f - 0.25) / 0.75, 1.15));
     }
-    for (i = n; i >= 0; i--) {
-      ctx.lineTo(pts[i].x - (pts[i].nx * pts[i].th) / 2, pts[i].y - (pts[i].ny * pts[i].th) / 2);
-    }
-    ctx.closePath();
-    // Spines along the back, raked toward the tail.
-    for (i = 4; i < n - 2; i += 2) {
-      var q = pts[i];
-      var top = q.th / 2;
-      var spike = q.th * 0.45 + 1;
-      ctx.moveTo(q.x + q.nx * top + q.tx * step * 0.45, q.y + q.ny * top + q.ty * step * 0.45);
-      ctx.lineTo(q.x + q.nx * (top + spike) - q.tx * step * 0.6, q.y + q.ny * (top + spike) - q.ty * step * 0.6);
-      ctx.lineTo(q.x + q.nx * top - q.tx * step * 0.45, q.y + q.ny * top - q.ty * step * 0.45);
-    }
-    // The tail ends in a flickering tuft.
-    var e = pts[n];
-    var tuft = g.len * 0.07;
-    for (var lobe = -1; lobe <= 1; lobe++) {
-      var sway = Math.sin(age * 3 + lobe) * tuft * 0.15;
-      var ex = e.x - e.tx * tuft + e.nx * (lobe * tuft * 0.35 + sway);
-      var ey = e.y - e.ty * tuft + e.ny * (lobe * tuft * 0.35 + sway);
-      ctx.moveTo(e.x + e.nx * 1.5, e.y + e.ny * 1.5);
-      ctx.quadraticCurveTo(e.x - e.tx * tuft * 0.4 + e.nx * lobe * tuft * 0.5, e.y - e.ty * tuft * 0.4 + e.ny * lobe * tuft * 0.5, ex, ey);
-      ctx.quadraticCurveTo(e.x - e.tx * tuft * 0.35, e.y - e.ty * tuft * 0.35, e.x - e.nx * 1.5, e.y - e.ny * 1.5);
-    }
-    ctx.fill();
 
-    // Four legs, front and back, paddling slowly, each with three claws.
-    [0.2, 0.6].forEach(function (at, pair) {
-      [-1, 1].forEach(function (side) {
-        var p = pts[Math.round(at * n) + side];
-        var paddle = Math.sin(age * 2 + pair * 1.6 + side) * 0.35;
-        var reach = pair === 0 ? 1 : -0.6;
-        var bx = p.x - p.nx * p.th * 0.3;
-        var by = p.y - p.ny * p.th * 0.3;
-        var kx = bx - p.nx * p.th * 0.75 + p.tx * p.th * (reach + paddle);
-        var ky = by - p.ny * p.th * 0.75 + p.ty * p.th * (reach + paddle);
-        var fx = kx - p.nx * p.th * 0.55 - p.tx * p.th * 0.6;
-        var fy = ky - p.ny * p.th * 0.55 - p.ty * p.th * 0.6;
-        ctx.lineWidth = p.th * 0.32;
-        ctx.beginPath();
-        ctx.moveTo(bx, by);
-        ctx.lineTo(kx, ky);
-        ctx.lineTo(fx, fy);
-        ctx.stroke();
-        ctx.lineWidth = Math.max(0.8, p.th * 0.12);
-        ctx.beginPath();
-        for (var c = -1; c <= 1; c++) {
-          ctx.moveTo(fx, fy);
-          ctx.lineTo(fx + p.tx * p.th * 0.35 * (1 + c * 0.2) - p.nx * p.th * 0.25 * c, fy + p.ty * p.th * 0.35 * (1 + c * 0.2) - p.ny * p.th * 0.25 * c);
-        }
-        ctx.stroke();
+    var lc = this.dragonLayer.getContext("2d");
+    lc.setTransform(1, 0, 0, 1, 0, 0);
+    lc.clearRect(0, 0, this.dragonLayer.width, this.dragonLayer.height);
+    lc.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    var night = this.night;
+    lc.fillStyle = lc.strokeStyle = "rgb(" + Math.round(22 - 16 * night) + ", " + Math.round(42 - 30 * night) + ", " + Math.round(64 - 36 * night) + ")";
+    lc.lineCap = "round";
+    lc.lineJoin = "round";
+
+    // Body, then the frill along its back.
+    lc.beginPath();
+    for (i = 0; i <= n; i++) lc[i ? "lineTo" : "moveTo"](pts[i].x + (pts[i].nx * pts[i].th) / 2, pts[i].y + (pts[i].ny * pts[i].th) / 2);
+    for (i = n; i >= 0; i--) lc.lineTo(pts[i].x - (pts[i].nx * pts[i].th) / 2, pts[i].y - (pts[i].ny * pts[i].th) / 2);
+    lc.closePath();
+    lc.fill();
+    lc.beginPath();
+    for (i = 3; i < n - 2; i += 2) {
+      var q = pts[i];
+      var top = q.th / 2 - 0.5;
+      var tall = Math.max(2, q.th * 0.6);
+      var bx = q.x + q.nx * top;
+      var by = q.y + q.ny * top;
+      lc.moveTo(bx + q.tx * step * 0.8, by + q.ty * step * 0.8);
+      lc.quadraticCurveTo(bx + q.nx * tall * 0.9 + q.tx * step * 0.3, by + q.ny * tall * 0.9 + q.ty * step * 0.3, bx + q.nx * tall - q.tx * step * 1.5, by + q.ny * tall - q.ty * step * 1.5);
+      lc.quadraticCurveTo(bx + q.nx * tall * 0.3 - q.tx * step * 0.6, by + q.ny * tall * 0.3 - q.ty * step * 0.6, bx - q.tx * step * 0.9, by - q.ty * step * 0.9);
+    }
+    lc.fill();
+
+    // Legs, in each one's own frame on the body: forward toward the head and
+    // down toward the belly. Front legs reach forward, back legs push back.
+    function leg(p, front, phase, scale) {
+      var dn = -1;
+      function at(fx, dy) {
+        return [p.x + p.tx * fx + p.nx * dn * dy, p.y + p.ty * fx + p.ny * dn * dy];
+      }
+      function turn(v, ang) {
+        var c = Math.cos(ang);
+        var sn = Math.sin(ang);
+        return [v[0] * c - v[1] * sn, v[0] * sn + v[1] * c];
+      }
+      var u = T * scale;
+      var swing = 0.25 * Math.sin(age * 1.8 + phase);
+      var e = turn(front ? [0.55 * u, 1.3 * u] : [-0.45 * u, 1.25 * u], swing);
+      var w2 = turn(front ? [0.85 * u, 0.55 * u] : [-0.85 * u, 0.6 * u], swing * 1.4);
+      var root = at(0, 0.2 * u);
+      var elbow = at(e[0], e[1]);
+      var wrist = at(e[0] + w2[0], e[1] + w2[1]);
+      lc.lineWidth = 0.62 * u;
+      lc.beginPath();
+      lc.moveTo(root[0], root[1]);
+      lc.lineTo(elbow[0], elbow[1]);
+      lc.stroke();
+      lc.lineWidth = 0.42 * u;
+      lc.beginPath();
+      lc.moveTo(elbow[0], elbow[1]);
+      lc.lineTo(wrist[0], wrist[1]);
+      lc.stroke();
+      // A flame-like tuft of hair at the elbow or knee, streaming back.
+      lc.beginPath();
+      [[-1.0, -0.15], [-0.85, 0.3]].forEach(function (tip) {
+        var tp = at(e[0] + tip[0] * u, e[1] + tip[1] * u);
+        var s1 = at(e[0] + 0.15 * u, e[1] - 0.2 * u);
+        var s2 = at(e[0] + 0.1 * u, e[1] + 0.25 * u);
+        lc.moveTo(s1[0], s1[1]);
+        lc.quadraticCurveTo((s1[0] + tp[0]) / 2, (s1[1] + tp[1]) / 2 - 0.2 * u, tp[0], tp[1]);
+        lc.lineTo(s2[0], s2[1]);
       });
+      lc.fill();
+      // Four talons, spread and curling down.
+      lc.lineWidth = Math.max(0.9, 0.17 * u);
+      lc.beginPath();
+      for (var c = 0; c < 4; c++) {
+        var spread = (c - 1.5) * 0.45;
+        var dir = turn(front ? [0.75 * u, 0.15 * u] : [-0.75 * u, 0.2 * u], spread + swing);
+        var mid = at(e[0] + w2[0] + dir[0] * 0.6, e[1] + w2[1] + dir[1] * 0.6);
+        var tip2 = at(e[0] + w2[0] + dir[0], e[1] + w2[1] + dir[1] + 0.3 * u);
+        lc.moveTo(wrist[0], wrist[1]);
+        lc.quadraticCurveTo(mid[0], mid[1], tip2[0], tip2[1]);
+      }
+      lc.stroke();
+    }
+    [[0.17, true], [0.62, false]].forEach(function (pair, k) {
+      var near = pts[Math.round(pair[0] * n)];
+      var far = pts[Math.round(pair[0] * n) + 2];
+      leg(far, pair[1], k * 1.7 + 1.6, 0.85);
+      leg(near, pair[1], k * 1.7, 1);
     });
 
-    // The head, drawn facing along the flight with its top up.
-    var hd = pts[0];
-    var k = thick / 10;
-    ctx.save();
-    ctx.translate(hd.x, hd.y);
-    ctx.rotate(Math.atan2(hd.ty, hd.tx));
-    if (g.dir < 0) ctx.scale(1, -1);
-    ctx.beginPath();
-    ctx.moveTo(-2 * k, -5 * k);
-    ctx.quadraticCurveTo(4 * k, -8 * k, 10 * k, -6.5 * k);
-    ctx.quadraticCurveTo(16 * k, -6 * k, 22 * k, -3 * k);
-    ctx.quadraticCurveTo(25 * k, -2 * k, 24.5 * k, 0);
-    ctx.lineTo(14 * k, 0.6 * k);
-    ctx.lineTo(21 * k, 3 * k);
-    ctx.quadraticCurveTo(14 * k, 6.5 * k, 4 * k, 5.5 * k);
-    ctx.lineTo(-2 * k, 5 * k);
-    ctx.closePath();
-    // A mane of flame-like tufts behind the head.
-    for (var m = 0; m < 3; m++) {
-      var flick = Math.sin(age * 4 + m) * 1.2 * k;
-      ctx.moveTo((-1 - m * 6) * k, -4.5 * k);
-      ctx.lineTo((-9 - m * 6) * k, (-11 + m * 1.5) * k + flick);
-      ctx.lineTo((-5 - m * 6) * k, -4.5 * k);
+    // The tail ends in a fan of flame.
+    var e0 = pts[n];
+    var fan = T * 2.3;
+    lc.beginPath();
+    for (var lobe = -2; lobe <= 2; lobe++) {
+      var sway = Math.sin(age * 2.6 + lobe * 0.8) * T * 0.25;
+      var reach = fan * (1 - Math.abs(lobe) * 0.18);
+      var side = lobe * T * 0.5 + sway;
+      var tipx = e0.x - e0.tx * reach + e0.nx * side;
+      var tipy = e0.y - e0.ty * reach + e0.ny * side;
+      lc.moveTo(e0.x + e0.nx * T * 0.2, e0.y + e0.ny * T * 0.2);
+      lc.quadraticCurveTo(e0.x - e0.tx * reach * 0.45 + e0.nx * (side + T * 0.35), e0.y - e0.ty * reach * 0.45 + e0.ny * (side + T * 0.35), tipx, tipy);
+      lc.quadraticCurveTo(e0.x - e0.tx * reach * 0.4 + e0.nx * (side - T * 0.2), e0.y - e0.ty * reach * 0.4 + e0.ny * (side - T * 0.2), e0.x - e0.nx * T * 0.2, e0.y - e0.ny * T * 0.2);
     }
-    ctx.fill();
-    ctx.lineWidth = 1.6 * k;
-    ctx.beginPath();
-    ctx.moveTo(6 * k, -7 * k);
-    ctx.quadraticCurveTo(-2 * k, -14 * k, -12 * k, -15 * k);
-    ctx.moveTo(-3 * k, -12.5 * k);
-    ctx.lineTo(-6 * k, -18 * k);
-    ctx.moveTo(9 * k, -6.5 * k);
-    ctx.quadraticCurveTo(2 * k, -11 * k, -6 * k, -11.5 * k);
-    ctx.stroke();
-    // Long whiskers trailing back from the nose, waving as it flies.
-    var wv = Math.sin(age * 2.2) * 3 * k;
-    var wv2 = Math.sin(age * 2.2 - 1) * 4 * k;
-    ctx.lineWidth = Math.max(0.8, 0.9 * k);
-    ctx.beginPath();
-    ctx.moveTo(23 * k, -1 * k);
-    ctx.bezierCurveTo(16 * k, -11 * k + wv, 2 * k, -3 * k + wv, -18 * k, -9 * k + wv2);
-    ctx.moveTo(21 * k, 2.5 * k);
-    ctx.bezierCurveTo(13 * k, 10 * k + wv, 0, 5 * k - wv, -16 * k, 11 * k + wv2);
-    ctx.stroke();
+    lc.fill();
+
+    // The head, in its own frame: facing along the flight, top up. One unit
+    // is a tenth of the neck's thickness.
+    var hd = pts[0];
+    var k = T / 10;
+    lc.save();
+    lc.translate(hd.x, hd.y);
+    lc.rotate(Math.atan2(hd.ty, hd.tx));
+    if (g.dir < 0) lc.scale(1, -1);
+    lc.scale(k, k);
+    // A mane streaming back from the head along the neck.
+    lc.beginPath();
+    for (var m = 0; m < 6; m++) {
+      var fl = Math.sin(age * 3.2 + m * 0.9) * 1.6;
+      var x0 = 8 - m * 5;
+      lc.moveTo(x0, -5);
+      lc.quadraticCurveTo(x0 - 6, -11 - m * 0.3 + fl, x0 - 14, -10 + m * 0.6 + fl);
+      lc.quadraticCurveTo(x0 - 7, -6, x0 - 5, -3);
+    }
+    lc.fill();
+    // Skull, brow, upturned nose, open mouth with fangs, and a tufted beard.
+    lc.beginPath();
+    lc.moveTo(-3, -5);
+    lc.quadraticCurveTo(2, -8, 9, -9.5);
+    lc.quadraticCurveTo(12, -9.5, 14, -7.5);
+    lc.quadraticCurveTo(19, -6.5, 24, -6.5);
+    lc.quadraticCurveTo(27, -8.5, 30, -6);
+    lc.quadraticCurveTo(31, -4, 29.5, -2.6);
+    lc.lineTo(27.5, -1.6);
+    lc.lineTo(26.6, 0.4);
+    lc.lineTo(25.6, -1.2);
+    lc.lineTo(17, -0.4);
+    lc.lineTo(24.5, 1.6);
+    lc.lineTo(25.4, 0.8);
+    lc.lineTo(26.6, 2.4);
+    lc.quadraticCurveTo(26, 4.6, 22.5, 5.4);
+    lc.lineTo(21, 10.5 + Math.sin(age * 2.5) * 0.8);
+    lc.lineTo(18.5, 6.4);
+    lc.lineTo(15.5, 11.5 + Math.sin(age * 2.5 + 0.7) * 0.8);
+    lc.lineTo(13, 6.6);
+    lc.lineTo(9.5, 10 + Math.sin(age * 2.5 + 1.4) * 0.8);
+    lc.lineTo(7, 6);
+    lc.lineTo(-3, 5);
+    lc.closePath();
+    lc.fill();
+    // Branching horns like a stag's, swept back.
+    lc.lineWidth = 1.9;
+    lc.beginPath();
+    lc.moveTo(7, -8);
+    lc.quadraticCurveTo(-2, -15, -15, -19);
+    lc.moveTo(-3, -14.5);
+    lc.quadraticCurveTo(-3, -19, -6, -23);
+    lc.moveTo(-9, -17.5);
+    lc.quadraticCurveTo(-10, -21, -13, -24);
+    lc.stroke();
+    lc.lineWidth = 1.4;
+    lc.beginPath();
+    lc.moveTo(10, -8.5);
+    lc.quadraticCurveTo(3, -13, -6, -14);
+    lc.moveTo(0, -13);
+    lc.lineTo(-1.5, -17);
+    lc.stroke();
+    // Two long whiskers trailing back from the nose, waving as it flies.
+    var w1 = Math.sin(age * 2) * 3;
+    var w3 = Math.sin(age * 2 - 1.2) * 4;
+    lc.lineWidth = 1.1;
+    lc.beginPath();
+    lc.moveTo(29, -3.5);
+    lc.bezierCurveTo(22, -16 + w1, 8, -6 + w1, -10, -14 + w3);
+    lc.quadraticCurveTo(-22, -19 + w3, -32, -12 + w3);
+    lc.moveTo(28, -0.5);
+    lc.bezierCurveTo(20, 12 + w1, 6, 6 - w1, -10, 14 + w3);
+    lc.quadraticCurveTo(-20, 18 + w3, -30, 13 + w3);
+    lc.stroke();
+    // The eye, cut out so the sky shows through.
+    lc.globalCompositeOperation = "destination-out";
+    lc.beginPath();
+    lc.ellipse(15.5, -5.6, 1.7, 1, -0.15, 0, TAU);
+    lc.fill();
+    lc.globalCompositeOperation = "source-over";
+    lc.restore();
+
+    // Fade the whole silhouette onto the sky: blue-grey by day, dark at night.
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 0.5 + 0.35 * this.night;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.drawImage(this.dragonLayer, 0, 0);
     ctx.restore();
   };
 
