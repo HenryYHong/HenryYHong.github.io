@@ -60,6 +60,9 @@
     "uniform sampler2D uFishShade;",
     "uniform sampler2D uPadShade;",
     "uniform float uMoonReady;",
+    "uniform vec3 uDipper[7];",
+    "uniform vec4 uMeteor;",
+    "uniform vec2 uMeteorV;",
 
     "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
     "float noise(vec2 p) {",
@@ -215,6 +218,40 @@
     "    col = mix(col, moonCol, disc * 0.85 * uNight);",
     "    col += vec3(0.55, 0.68, 0.9) * exp(-md * md / (moonR * moonR * 9.0)) * 0.16 * uNight;",
     "  }",
+    // The rest of the night sky in the water: faint stars, the Big Dipper
+    // (mirrored, as in any reflection) and now and then a shooting star. Like
+    // the moon they hold still, and ripples from food and fish break them up.
+    "  if (uNight > 0.0) {",
+    "    vec2 sp = p + rg * 0.25 + dropG * 1.5;",
+    "    vec2 sc = sp / 19.0;",
+    "    vec2 si = floor(sc);",
+    "    float seed = hash(si + 31.7);",
+    "    vec2 so = (fract(sc) - (vec2(hash(si + 7.3), hash(si + 13.9)) * 0.6 + 0.2)) * 19.0;",
+    "    float twinkle = 0.7 + 0.3 * sin(uTime * (1.0 + 2.0 * hash(si + 5.5)) + seed * 50.0);",
+    "    float sky = step(0.62, seed) * pow(hash(si + 3.3), 3.0) * 0.6 * twinkle * exp(-dot(so, so) * 1.6);",
+    "    for (int i = 0; i < 7; i++) {",
+    "      vec2 d = sp - uDipper[i].xy;",
+    "      float dd = dot(d, d);",
+    "      sky += uDipper[i].z * (exp(-dd * 0.5) + 0.2 * exp(-dd * 0.04)) * (0.85 + 0.15 * sin(uTime * 1.3 + float(i) * 1.7));",
+    "    }",
+    "    float age = uTime - uMeteor.z;",
+    "    if (age > 0.0 && age < uMeteor.w) {",
+    "      vec2 dir = normalize(uMeteorV);",
+    "      vec2 rel = sp - (uMeteor.xy + uMeteorV * age);",
+    "      float behind = -dot(rel, dir);",
+    "      float across = dot(rel, vec2(-dir.y, dir.x));",
+    "      float tail = 130.0 * min(1.0, age / 0.15);",
+    "      float fade = pow(sin(3.14159 * age / uMeteor.w), 0.7);",
+    "      sky += exp(-across * across * 1.2) * smoothstep(tail, 0.0, behind) * step(-1.2, behind) * fade * 1.1;",
+    "    }",
+    "    sky *= smoothstep(moonR, moonR * 1.3, md) * mix(0.6, 1.0, smoothstep(0.6, 1.4, length(mid)));",
+    "    col += vec3(0.85, 0.9, 1.0) * sky * uNight;",
+    "  }",
+    // By day the sun's reflection sits where the moon's does at night: a soft
+    // glare with a bright middle that ripples bend, and more sparkle around it.
+    "  float sunD = length(p - moonC + rg * 0.4 + dropG * 2.0);",
+    "  float glare = exp(-sunD * sunD / (moonR * moonR * 30.0)) * day;",
+    "  col += vec3(1.0, 0.97, 0.88) * (glare * 0.22 + exp(-sunD * sunD / (moonR * moonR * 1.2)) * 0.45 * day);",
     // Clouds reflected in the water, drifting right with the wind at about
     // 15 px a second: soft and misty at the edges, a little stretched along the
     // way they drift, and slowly changing shape. The swell bends them slightly
@@ -236,9 +273,9 @@
     "  vec2 gc = vec2(hash(gi + 11.3), hash(gi + 27.1)) * 0.7 + 0.15;",
     "  vec2 gd = (fract(gp) - gc) * 7.0;",
     "  float flash = pow(max(sin(uTime * (0.8 + 1.2 * gh) + gh * 40.0), 0.0), 16.0);",
-    "  float spark = flash * step(0.87, hash(gi + 51.9)) * exp(-dot(gd, gd) * 0.9);",
+    "  float spark = flash * step(0.87 - 0.3 * glare, hash(gi + 51.9)) * exp(-dot(gd, gd) * 0.9);",
     // At night there are fewer glints, and none on the moon itself.
-    "  float gate = mix(breeze, breeze * 0.35 * smoothstep(moonR, moonR * 1.6, md), uNight);",
+    "  float gate = mix(breeze + glare * 1.5, breeze * 0.35 * smoothstep(moonR, moonR * 1.6, md), uNight);",
     "  col += vec3(1.0, 0.97, 0.9) * spark * gate * mix(2.2, 1.8, uNight);",
 
     // Food floats on the surface, over the reflections, and the clouds haze it too.
@@ -273,6 +310,39 @@
   var CURVE_RANGE = 3; // must match the 6.0 decode (2 * range) in the shader
   var DROP_SLOTS = 12; // must match uDrops[12] in the shader
   var MOON_SRC = "assets/img/moon.jpg"; // NASA/GSFC/Arizona State University, public domain
+  // The Big Dipper's stars, [right ascension in hours, declination in degrees,
+  // magnitude]: Dubhe, Merak, Phecda, Megrez, Alioth, Mizar, Alkaid.
+  var DIPPER_STARS = [
+    [11.062, 61.75, 1.8],
+    [11.031, 56.38, 2.4],
+    [11.897, 53.69, 2.4],
+    [12.257, 57.03, 3.3],
+    [12.9, 55.96, 1.8],
+    [13.399, 54.93, 2.2],
+    [13.792, 49.31, 1.9],
+  ];
+  // Flattened around its middle and mirrored the way the water mirrors it,
+  // longest side 1: [x, y, brightness].
+  var DIPPER = (function () {
+    var ra0 = 0;
+    var dec0 = 0;
+    DIPPER_STARS.forEach(function (s) {
+      ra0 += s[0] / 7;
+      dec0 += s[1] / 7;
+    });
+    var k = Math.cos((dec0 * Math.PI) / 180) * 15;
+    var pts = DIPPER_STARS.map(function (s) {
+      return [(s[0] - ra0) * k, -(s[1] - dec0), 1.1 + (2.6 - s[2]) * 0.35];
+    });
+    var xs = pts.map(function (q) { return q[0]; });
+    var ys = pts.map(function (q) { return q[1]; });
+    var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2;
+    var cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
+    var span = Math.max(Math.max.apply(null, xs) - Math.min.apply(null, xs), Math.max.apply(null, ys) - Math.min.apply(null, ys));
+    return pts.map(function (q) {
+      return [(q[0] - cx) / span, (q[1] - cy) / span, q[2]];
+    });
+  })();
   var SHADE_SCALE = 4; // CSS px per texel of the blurred shadow layers
   var FISH_BLUR = 5.6; // CSS px, how far fish shadows spread on the floor
   var PAD_BLUR = 6.9; // CSS px, the same for lily pads, which float higher
@@ -315,6 +385,10 @@
     this.drops = new Float32Array(DROP_SLOTS * 4);
     this.dropNext = 0;
     this.moonImage = null;
+    this.dipper = new Float32Array(21);
+    this.meteor = new Float32Array([0, 0, -10, 1]);
+    this.meteorV = new Float32Array([1, 0]);
+    this.nextMeteor = 3;
     // Blurred copies of the fish and pad layers for their shadows, plus the
     // half-done blur in between.
     this.fishShade = null;
@@ -411,7 +485,7 @@
     }, this);
 
     var u = {};
-    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade", "uFood"].forEach(function (name) {
+    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade", "uFood", "uDipper", "uMeteor", "uMeteorV"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
     });
     this.u = u;
@@ -557,6 +631,7 @@
   // Ripples fade out at the frame edges and bounce softly off lily pads.
   KoiWater.prototype.buildMask = function (pads) {
     this.pads = pads;
+    this.placeDipper();
     if (!this.mask) return;
     var gw = this.gw;
     var gh = this.gh;
@@ -580,6 +655,66 @@
         this.mask[y * gw + x] = m;
       }
     }
+  };
+
+  // Find open water for the Big Dipper's reflection: clear of the lily pads, the
+  // moon and the heading, toward the upper left when there's a choice.
+  KoiWater.prototype.placeDipper = function () {
+    var w = this.w;
+    var h = this.h;
+    var top = this.top;
+    if (!w || !h) return;
+    var size = Math.max(90, Math.min(170, w * 0.12));
+    var moonX = w * 0.7;
+    var moonY = top + (h - top) * 0.3;
+    var moonR = Math.max(14, Math.min(22, w * 0.016));
+    var pads = this.pads || [];
+    var best = null;
+    for (var gy = 0; gy <= 8; gy++) {
+      for (var gx = 0; gx <= 16; gx++) {
+        var cx = w * (0.06 + (0.88 * gx) / 16);
+        var cy = top + (h - top) * (0.12 + (0.76 * gy) / 8);
+        var bad = 0;
+        for (var i = 0; i < DIPPER.length; i++) {
+          var x = cx + DIPPER[i][0] * size;
+          var y = cy + DIPPER[i][1] * size;
+          if (x < 16 || x > w - 16 || y < top + 12 || y > h - 12) bad++;
+          var mx = (x - w / 2) / 260;
+          var my = (y - (top + h) / 2) / 70;
+          if (mx * mx + my * my < 1.6) bad++;
+          if (Math.hypot(x - moonX, y - moonY) < moonR * 3) bad++;
+          for (var j = 0; j < pads.length; j++) {
+            var pad = pads[j];
+            if (Math.hypot((x - pad.x) / (pad.rx + 10), (y - pad.y) / (pad.ry + 10)) < 1.2) bad++;
+          }
+        }
+        var score = bad * 10 + Math.hypot((cx - w * 0.3) / w, (cy - top - (h - top) * 0.35) / h);
+        if (!best || score < best.score) best = { score: score, x: cx, y: cy };
+      }
+    }
+    for (var k = 0; k < DIPPER.length; k++) {
+      this.dipper[k * 3] = best.x + DIPPER[k][0] * size;
+      this.dipper[k * 3 + 1] = best.y + DIPPER[k][1] * size;
+      this.dipper[k * 3 + 2] = DIPPER[k][2];
+    }
+  };
+
+  // A shooting star's reflection every so often while it's night.
+  KoiWater.prototype.updateMeteor = function () {
+    if (this.nextMeteor - this.time > 20) this.nextMeteor = this.time + 5; // the clock wrapped
+    if (this.night < 0.5 || this.time < this.nextMeteor || this.time < this.meteor[2] + this.meteor[3]) return;
+    var w = this.w;
+    var top = this.top;
+    var dir = Math.random() < 0.5 ? -1 : 1;
+    var angle = 0.25 + Math.random() * 0.3;
+    var speed = 380 + Math.random() * 220;
+    this.meteor[0] = w * (0.1 + Math.random() * 0.8);
+    this.meteor[1] = top + (this.h - top) * Math.random() * 0.4;
+    this.meteor[2] = this.time;
+    this.meteor[3] = 0.6 + Math.random() * 0.4;
+    this.meteorV[0] = Math.cos(angle) * speed * dir;
+    this.meteorV[1] = Math.sin(angle) * speed;
+    this.nextMeteor = this.time + 5 + Math.random() * 7;
   };
 
   // Push the surface down (amount > 0) in a soft dot of the given radius.
@@ -754,6 +889,10 @@
     gl.uniform1f(u.uTop, this.top);
     gl.uniform2f(u.uGrid, this.gw, this.gh);
     gl.uniform1f(u.uCell, this.cell);
+    this.updateMeteor();
+    gl.uniform3fv(u.uDipper, this.dipper);
+    gl.uniform4fv(u.uMeteor, this.meteor);
+    gl.uniform2fv(u.uMeteorV, this.meteorV);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   };
 

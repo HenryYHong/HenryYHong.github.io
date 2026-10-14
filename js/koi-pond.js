@@ -153,6 +153,8 @@
     this.foodCtx = null;
     this.foodShown = false;
     this.foodDirty = false;
+    this.flyover = null;
+    this.nextFlyover = 0;
     this.top = 0;
     this.fishes = [];
     this.foodPellets = [];
@@ -650,15 +652,18 @@
     var now = this.time || 0;
 
     // With the water on, food floats on the surface over the moon and clouds
-    // reflected in it, so it gets its own layer. That layer is only redrawn and
-    // sent to the shader while there is food, plus once more to clear it.
+    // reflected in it, so it gets its own layer, along with birds and planes
+    // reflected as they pass over. That layer is only redrawn and sent to the
+    // shader while something is on it, plus once more to clear it.
     this.foodDirty = false;
     if (this.foodCtx) {
-      if (!this.foodPellets.length && !this.foodShown) return;
+      var busy = this.foodPellets.length > 0 || !!this.flyover;
+      if (!busy && !this.foodShown) return;
       ctx = this.foodCtx;
       ctx.clearRect(0, 0, this.w, this.h);
-      this.foodShown = this.foodPellets.length > 0;
+      this.foodShown = busy;
       this.foodDirty = true;
+      if (this.flyover) this.drawFlyover(ctx);
     }
 
     ctx.save();
@@ -742,6 +747,168 @@
     }
 
     if (callback) callback();
+  };
+
+  // By day, now and then something crosses the sky and shows in the water:
+  // a few swallows, a heron, or now and then a plane with its contrail.
+  KoiPond.prototype.updateFlyover = function () {
+    var now = this.time / 1000;
+    var f = this.flyover;
+    if (f) {
+      f.age = now - f.born;
+      if (f.age > f.dur) this.flyover = null;
+      return;
+    }
+    if (!this.foodCtx || this.isNight()) {
+      this.nextFlyover = 0;
+      return;
+    }
+    if (!this.nextFlyover) this.nextFlyover = now + rand(12, 22);
+    if (now < this.nextFlyover) return;
+    this.nextFlyover = now + rand(35, 70);
+
+    var roll = Math.random();
+    var kind = roll < 0.2 ? "plane" : roll < 0.5 ? "heron" : "swallows";
+    var speed = kind === "plane" ? rand(60, 80) : kind === "heron" ? rand(85, 105) : rand(170, 210);
+    var water = this.h - this.top;
+    var fromLeft = Math.random() < 0.5;
+    var x0 = fromLeft ? -90 : this.w + 90;
+    var x1 = fromLeft ? this.w + 90 : -90;
+    var y0 = this.top + water * rand(0.15, 0.85);
+    var y1 = this.top + water * rand(0.15, 0.85);
+    var birds = [];
+    if (kind === "swallows") {
+      for (var i = 0, n = randInt(3, 4); i < n; i++) {
+        birds.push({ dx: -i * rand(22, 34), dy: (i % 2 ? 1 : -1) * i * rand(9, 15), phase: rand(0, TAU) });
+      }
+    } else if (kind === "heron") {
+      birds.push({ dx: 0, dy: 0, phase: 0 });
+    }
+    var len = Math.hypot(x1 - x0, y1 - y0);
+    this.flyover = {
+      kind: kind,
+      birds: birds,
+      x0: x0,
+      y0: y0,
+      dirX: (x1 - x0) / len,
+      dirY: (y1 - y0) / len,
+      speed: speed,
+      born: now,
+      age: 0,
+      // A plane's contrail lingers after it has gone.
+      dur: (len + (kind === "plane" ? 260 : 120)) / speed + (kind === "plane" ? 6 : 0),
+    };
+  };
+
+  KoiPond.prototype.drawFlyover = function (ctx) {
+    var f = this.flyover;
+    var t = f.age;
+    var hx = f.x0 + f.dirX * f.speed * t;
+    var hy = f.y0 + f.dirY * f.speed * t;
+    var ang = Math.atan2(f.dirY, f.dirX);
+    ctx.save();
+    if (f.kind === "plane") {
+      // The contrail: two white lines behind the engines that spread and fade.
+      var trail = Math.min(f.speed * t, 420);
+      for (var side = -1; side <= 1; side += 2) {
+        var ox = -f.dirY * side * 2.2;
+        var oy = f.dirX * side * 2.2;
+        var tx = hx - f.dirX * trail;
+        var ty = hy - f.dirY * trail;
+        var g = ctx.createLinearGradient(hx, hy, tx, ty);
+        g.addColorStop(0, "rgba(255, 255, 255, 0)");
+        g.addColorStop(0.06, "rgba(255, 255, 255, 0.4)");
+        g.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(hx - f.dirX * 6 + ox, hy - f.dirY * 6 + oy);
+        ctx.lineTo(tx + ox * 2, ty + oy * 2);
+        ctx.stroke();
+      }
+      ctx.translate(hx, hy);
+      ctx.rotate(ang);
+      ctx.fillStyle = "rgba(24, 40, 58, 0.45)";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 8, 1.3, 0, 0, TAU);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(2, 0);
+      ctx.lineTo(-2.5, -8);
+      ctx.lineTo(-4, -8);
+      ctx.lineTo(-2, 0);
+      ctx.lineTo(-4, 8);
+      ctx.lineTo(-2.5, 8);
+      ctx.closePath();
+      ctx.moveTo(-6, 0);
+      ctx.lineTo(-8.5, -3);
+      ctx.lineTo(-9.3, -3);
+      ctx.lineTo(-8, 0);
+      ctx.lineTo(-9.3, 3);
+      ctx.lineTo(-8.5, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+    // Birds seen from below in the reflection: dark shapes whose wings
+    // narrow and widen as they flap.
+    ctx.fillStyle = "rgba(18, 38, 56, 0.5)";
+    f.birds.forEach(function (b) {
+      var x = hx + f.dirX * b.dx - f.dirY * b.dy;
+      var y = hy + f.dirY * b.dx + f.dirX * b.dy;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(ang);
+      ctx.scale(1.5, 1.5);
+      if (f.kind === "heron") {
+        var beat = 0.55 + 0.45 * Math.abs(Math.cos(t * 3.2));
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 11, 3, 0, 0, TAU);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(6, -2);
+        ctx.quadraticCurveTo(0, -30 * beat, -10, -30 * beat);
+        ctx.quadraticCurveTo(-12, -14 * beat, -6, -2);
+        ctx.closePath();
+        ctx.moveTo(6, 2);
+        ctx.quadraticCurveTo(0, 30 * beat, -10, 30 * beat);
+        ctx.quadraticCurveTo(-12, 14 * beat, -6, 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(18, 38, 56, 0.5)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-10, -1);
+        ctx.lineTo(-24, -2);
+        ctx.moveTo(-10, 1);
+        ctx.lineTo(-24, 2);
+        ctx.stroke();
+      } else {
+        var span = 0.5 + 0.5 * Math.abs(Math.cos(t * 13 + b.phase));
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 5, 1.6, 0, 0, TAU);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(2.5, -1);
+        ctx.quadraticCurveTo(-1, -6 * span, -5, -12 * span);
+        ctx.quadraticCurveTo(-2, -5 * span, -2.5, -1);
+        ctx.closePath();
+        ctx.moveTo(2.5, 1);
+        ctx.quadraticCurveTo(-1, 6 * span, -5, 12 * span);
+        ctx.quadraticCurveTo(-2, 5 * span, -2.5, 1);
+        ctx.closePath();
+        ctx.moveTo(-4, -0.6);
+        ctx.lineTo(-9, -2.6);
+        ctx.lineTo(-6.5, 0);
+        ctx.lineTo(-9, 2.6);
+        ctx.lineTo(-4, 0.6);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+    ctx.restore();
   };
 
   KoiPond.prototype.isNight = function () {
@@ -1841,6 +2008,7 @@
       this.drawWater();
     }
     this.updateFood();
+    if (this.water) this.updateFlyover();
 
     var self = this;
 
