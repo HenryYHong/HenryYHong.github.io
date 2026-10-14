@@ -666,11 +666,6 @@
     return { x: b.left - s.left + b.width / 2 + 2, y: b.top - s.top - 3.4 };
   };
 
-  // Touching the button it's resting on sends it off again.
-  ContactShore.prototype.startle = function (k) {
-    var d = this.dragonfly;
-    if (d && d.perched === k) d.wait = 0;
-  };
 
   ContactShore.prototype.updateDragonfly = function (dt) {
     var d = this.dragonfly;
@@ -930,11 +925,6 @@
       this.visible = true;
     }
     document.addEventListener("visibilitychange", function () { self.refresh(); });
-    this.buttons.forEach(function (button, k) {
-      ["pointerenter", "pointerdown", "focus"].forEach(function (type) {
-        button.addEventListener(type, function () { self.startle(k); });
-      });
-    });
     // A still page redraws when the theme changes.
     new MutationObserver(function () {
       if (self.running) return;
