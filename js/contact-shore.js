@@ -260,6 +260,7 @@
     this.visible = false;
     this.running = false;
     this.raf = 0;
+    this.scrolledAt = -1e9;
     this.still = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     this._frame = this.frame.bind(this);
   }
@@ -1434,6 +1435,13 @@
   ContactShore.prototype.frame = function (now) {
     this.raf = 0;
     if (!this.running) return;
+    // At most 60 frames a second, and 30 while the page is scrolling, to
+    // leave the GPU free to scroll.
+    var gap = (now - this.scrolledAt < 200 ? 1000 / 30 : 1000 / 60) - 4;
+    if (this.last && now - this.last < gap) {
+      this.raf = requestAnimationFrame(this._frame);
+      return;
+    }
     var dt = this.last ? Math.min(0.05, (now - this.last) / 1000) : 0;
     this.last = now;
     this.time += dt;
@@ -1476,6 +1484,7 @@
       this.visible = true;
     }
     document.addEventListener("visibilitychange", function () { self.refresh(); });
+    window.addEventListener("scroll", function () { self.scrolledAt = window.performance.now(); }, { passive: true });
     // A still page redraws when the theme changes.
     new MutationObserver(function () {
       if (self.running) return;

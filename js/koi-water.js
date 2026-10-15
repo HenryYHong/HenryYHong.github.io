@@ -60,6 +60,7 @@
     "uniform sampler2D uFishShade;",
     "uniform sampler2D uPadShade;",
     "uniform sampler2D uSky;",
+    "uniform float uBirds;",
     "uniform float uMoonReady;",
 
     "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
@@ -245,8 +246,10 @@
     // Birds overhead, reflected in front of the clouds: soft, and darkening the
     // water. The water doesn't bend them; a warping shape crossing the screen
     // is hard to watch.
-    "  float bird = soft(uSky, p, 1.1);",
-    "  col = mix(col, col * vec3(0.52, 0.58, 0.66), bird * 0.55);",
+    "  if (uBirds > 0.0) {",
+    "    float bird = soft(uSky, p, 1.1);",
+    "    col = mix(col, col * vec3(0.52, 0.58, 0.66), bird * 0.55);",
+    "  }",
     // Sun glints: tiny ripple facets that tip toward the sun for an instant.
     // A few random points per patch of water, each flashing on its own beat.
     "  vec2 gp = p / 7.0;",
@@ -430,7 +433,7 @@
     }, this);
 
     var u = {};
-    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade", "uFood", "uSky"].forEach(function (name) {
+    ["uRes", "uDpr", "uTime", "uTop", "uNight", "uGrid", "uCell", "uFish", "uPads", "uRipple", "uDrops", "uMoon", "uMoonReady", "uFishShade", "uPadShade", "uFood", "uSky", "uBirds"].forEach(function (name) {
       u[name] = gl.getUniformLocation(prog, name);
     });
     this.u = u;
@@ -764,7 +767,9 @@
       this.blurInto(this.fishShade, 0, fishCanvas, FISH_BLUR);
     }
     if (foodCanvas) this.uploadCanvas(7, foodCanvas);
+    // The pond sends the sky layer every frame while birds are on it.
     if (skyCanvas) this.uploadCanvas(6, skyCanvas);
+    gl.uniform1f(u.uBirds, skyCanvas ? 1 : 0);
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.uniform2f(u.uRes, this.w, this.h);
     gl.uniform1f(u.uDpr, this.canvas.width / this.w);

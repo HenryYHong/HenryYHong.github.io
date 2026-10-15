@@ -118,6 +118,21 @@
   var SPEED_MAX = 0.45 * REF_FPS;
   var MAX_FRAME_DT = 0.05;
 
+  // The water is heavy for the GPU, so the pond draws at most 60 times a
+  // second, even on 120 Hz screens, and at half that while the page is
+  // scrolling, which leaves the GPU free to scroll smoothly.
+  var lastScrollAt = -1e9;
+  window.addEventListener(
+    "scroll",
+    function () {
+      lastScrollAt = window.performance.now();
+    },
+    { passive: true }
+  );
+  function frameGap(timestamp) {
+    return (timestamp - lastScrollAt < 200 ? 1000 / 30 : 1000 / 60) - 4;
+  }
+
   function getColorGroup(palette) {
     return palette.colorGroup || palette.id;
   }
@@ -1975,6 +1990,10 @@
 
   KoiPond.prototype.frame = function (timestamp) {
     if (!this.running) return;
+    if (this._lastFrameTs && timestamp - this._lastFrameTs < frameGap(timestamp)) {
+      this.rafId = requestAnimationFrame(this._boundFrame);
+      return;
+    }
 
     if (!this.w || !this.h) {
       this.resize();
