@@ -772,8 +772,7 @@
     if (callback) callback();
   };
 
-  // By day, now and then birds cross the sky and show in the water: a few
-  // swallows, or a heron.
+  // By day, now and then a few swallows cross the sky and show in the water.
   KoiPond.prototype.updateFlyover = function () {
     var now = this.time / 1000;
     var f = this.flyover;
@@ -790,8 +789,7 @@
     if (now < this.nextFlyover) return;
     this.nextFlyover = now + rand(35, 70);
 
-    var kind = Math.random() < 0.4 ? "heron" : "swallows";
-    var speed = kind === "heron" ? rand(85, 105) : rand(170, 210);
+    var speed = rand(170, 210);
     var water = this.h - this.top;
     var fromLeft = Math.random() < 0.5;
     var x0 = fromLeft ? -90 : this.w + 90;
@@ -799,16 +797,11 @@
     var y0 = this.top + water * rand(0.15, 0.85);
     var y1 = this.top + water * rand(0.15, 0.85);
     var birds = [];
-    if (kind === "swallows") {
-      for (var i = 0, n = randInt(3, 4); i < n; i++) {
-        birds.push({ dx: -i * rand(22, 34), dy: (i % 2 ? 1 : -1) * i * rand(9, 15), phase: rand(0, TAU) });
-      }
-    } else if (kind === "heron") {
-      birds.push({ dx: 0, dy: 0, phase: 0 });
+    for (var i = 0, n = randInt(3, 4); i < n; i++) {
+      birds.push({ dx: -i * rand(22, 34), dy: (i % 2 ? 1 : -1) * i * rand(9, 15), phase: rand(0, TAU) });
     }
     var len = Math.hypot(x1 - x0, y1 - y0);
     this.flyover = {
-      kind: kind,
       birds: birds,
       x0: x0,
       y0: y0,
@@ -834,15 +827,10 @@
       ctx.save();
       ctx.translate(hx + f.dirX * b.dx - f.dirY * b.dy, hy + f.dirY * b.dx + f.dirX * b.dy);
       ctx.rotate(ang);
-      if (f.kind === "heron") {
-        ctx.scale(1.25, 1.25);
-        fillOutline(ctx, heronOutline(t * 9 + b.phase));
-      } else {
-        ctx.scale(1.3, 1.3);
-        // Bursts of quick wingbeats between glides.
-        var beat = Math.max(0, Math.min(1, (Math.sin(t * 1.1 + b.phase * 2) + 0.2) * 2));
-        fillOutline(ctx, swallowOutline(t * 30 + b.phase * 5, beat));
-      }
+      ctx.scale(1.3, 1.3);
+      // Bursts of quick wingbeats between glides.
+      var beat = Math.max(0, Math.min(1, (Math.sin(t * 1.1 + b.phase * 2) + 0.2) * 2));
+      fillOutline(ctx, swallowOutline(t * 30 + b.phase * 5, beat));
       ctx.restore();
     });
     ctx.restore();
@@ -864,59 +852,6 @@
       this.drawWater();
     }
   };
-
-  // A heron seen from below, flying toward +x: broad, bowed wings with
-  // fingered tips, the neck drawn back so only the head and bill show ahead
-  // of them, and long legs trailing past the tail. Returns one side of the
-  // outline, bill to tail, as [x, y, sharp] points; phase drives the slow,
-  // deep wingbeat, with the hand swept back on the upstroke.
-  function heronOutline(phase) {
-    var lift = 0.62 * Math.sin(phase) - 0.08;
-    var fold = Math.pow(0.5 + 0.5 * Math.cos(phase), 2);
-    var arm = 14 * Math.cos(lift);
-    var hand = 20 * Math.cos(lift * 1.25) * (1 - 0.12 * fold);
-    var back = 4 * fold;
-    var wrist = 3 + arm;
-    var side = [
-      [21, 0, true],
-      [15.6, 1],
-      [14.6, 2],
-      [12.6, 2.2],
-      [11.2, 3],
-      [8.5, 3.9],
-      [5.5, 3.6],
-      [7.2, 3 + arm * 0.5],
-      [8 + back * 0.2, wrist],
-      [5.5 - back * 0.4, wrist + hand * 0.45],
-      [1 - back * 0.8, wrist + hand * 0.8],
-      [-2.5 - back, wrist + hand * 0.97],
-      [-4.5 - back, wrist + hand, true],
-      [-5.4 - back, wrist + hand * 0.92, true],
-      [-6.8 - back, wrist + hand * 0.95, true],
-      [-7.6 - back, wrist + hand * 0.85, true],
-      [-9 - back, wrist + hand * 0.86, true],
-      [-9.4 - back * 0.9, wrist + hand * 0.76, true],
-      [-10.6 - back * 0.8, wrist + hand * 0.74, true],
-      [-10.5 - back * 0.5, wrist + hand * 0.45],
-      [-9.5, wrist],
-      [-9, 3 + arm * 0.4],
-      [-8, 3],
-      [-11, 2.6],
-      [-14, 2.2],
-      [-14.5, 1.3],
-      [-16, 1.1],
-      [-26, 1],
-      [-28, 1.6],
-      [-29.5, 0.9, true],
-      [-27, 0.3],
-      [-17, 0.05],
-      [-16.5, 0, true],
-    ];
-    var mirror = side.slice(1, -1).reverse().map(function (p) {
-      return [p[0], -p[1], p[2]];
-    });
-    return side.concat(mirror);
-  }
 
   // A swallow seen from below, flying toward +x: long pointed wings and a
   // deeply forked tail. `beat` is 1 while it flaps and 0 while it glides,
